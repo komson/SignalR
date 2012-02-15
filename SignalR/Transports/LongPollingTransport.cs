@@ -105,17 +105,11 @@ namespace SignalR.Transports
             {
                 if (IsConnectRequest)
                 {
-                    return ProcessConnectRequest(connection);
+                    return connection.Drop().Then(() => ProcessConnectRequest(connection));
                 }
                 else if (MessageId != null)
                 {
-                    if (Reconnected != null)
-                    {
-                        // Return a task that completes when the reconnected event task & the receive loop task are both finished
-                        return TaskAsyncHelper.Interleave(ProcessReceiveRequest, Reconnected, connection);
-                    }
-
-                    return ProcessReceiveRequest(connection);
+                    return connection.Drop().Then(() => ProcessReconnectRequest(connection));
                 }
             }
 
@@ -165,6 +159,17 @@ namespace SignalR.Transports
             {
                 // Return a task that completes when the connected event task & the receive loop task are both finished
                 return TaskAsyncHelper.Interleave(ProcessReceiveRequest, Connected, connection);
+            }
+
+            return ProcessReceiveRequest(connection);
+        }
+
+        private Task ProcessReconnectRequest(IReceivingConnection connection)
+        {
+            if (Reconnected != null)
+            {
+                // Return a task that completes when the reconnected event task & the receive loop task are both finished
+                return TaskAsyncHelper.Interleave(ProcessReceiveRequest, Reconnected, connection);
             }
 
             return ProcessReceiveRequest(connection);

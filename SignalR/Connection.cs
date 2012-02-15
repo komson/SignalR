@@ -17,6 +17,7 @@ namespace SignalR
         private readonly HashSet<string> _groups;
         private readonly ITraceManager _trace;
         private bool _disconnected;
+        private bool _dropConnection;
 
         public Connection(IMessageBus messageBus,
                           IJsonSerializer jsonSerializer,
@@ -85,7 +86,8 @@ namespace SignalR
                 MessageId = result.LastMessageId,
                 Messages = messageValues,
                 Disconnect = _disconnected,
-                TimedOut = result.TimedOut
+                TimedOut = result.TimedOut,
+                DropConnection = _dropConnection
             };
 
             PopulateResponseState(response);
@@ -125,6 +127,9 @@ namespace SignalR
                     break;
                 case CommandType.Disconnect:
                     _disconnected = true;
+                    break;
+                case CommandType.DropConnection:
+                    _dropConnection = true;
                     break;
             }
         }

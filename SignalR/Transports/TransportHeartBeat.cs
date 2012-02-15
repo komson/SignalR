@@ -42,12 +42,13 @@ namespace SignalR.Transports
             _connectionMetadata.TryAdd(connection, new ConnectionMetadata());
         }
 
-        private void RemoveConnection(ITrackingConnection connection)
+        public bool RemoveConnection(ITrackingConnection connection)
         {
             // Remove the connection and associated metadata
-            _connections.Remove(connection);
+            bool removed = _connections.Remove(connection);
             ConnectionMetadata old;
             _connectionMetadata.TryRemove(connection, out old);
+            return removed;
         }
 
         public void MarkConnection(ITrackingConnection connection)
@@ -89,10 +90,11 @@ namespace SignalR.Transports
                         try
                         {
                             // Remove the connection from the list
-                            RemoveConnection(connection);
-
-                            // Fire disconnect on the connection
-                            connection.Disconnect();
+                            if (RemoveConnection(connection))
+                            {
+                                // Fire disconnect on the connection
+                                connection.Disconnect();
+                            }
                         }
                         catch
                         {
@@ -102,7 +104,7 @@ namespace SignalR.Transports
                     else
                     {
                         TimeSpan elapsed;
-                        if (!connection.IsTimedOut && 
+                        if (!connection.IsTimedOut &&
                             TryGetElapsed(connection, metadata => metadata.Initial, out elapsed) &&
                             elapsed >= _configurationManager.ReconnectionTimeout)
                         {

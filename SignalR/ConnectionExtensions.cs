@@ -15,5 +15,16 @@ namespace SignalR
 
             return connection.SendCommand(command);
         }
+
+        public static Task Drop(this IReceivingConnection connection)
+        {
+            var command = new SignalCommand
+            {
+                Type = CommandType.DropConnection,
+                ExpiresAfter = TimeSpan.FromMinutes(30)
+            };
+
+            return connection.SendCommand(command);
+        }
     }
 }

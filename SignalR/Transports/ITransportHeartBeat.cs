@@ -4,5 +4,6 @@
     {
         void AddConnection(ITrackingConnection connection);
         void MarkConnection(ITrackingConnection connection);
+        bool RemoveConnection(ITrackingConnection connection);
     }
 }

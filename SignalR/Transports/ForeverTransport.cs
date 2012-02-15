@@ -97,23 +97,33 @@ namespace SignalR.Transports
             {
                 if (IsConnectRequest)
                 {
-                    if (Connected != null)
-                    {
-                        // Return a task that completes when the connected event task & the receive loop task are both finished
-                        return TaskAsyncHelper.Interleave(ProcessReceiveRequest, Connected, connection);
-                    }
-
-                    return ProcessReceiveRequest(connection);
+                    return connection.Drop().Then(() => ProcessConnectRequest(connection));
                 }
 
-                if (Reconnected != null)
-                {
-                    // Return a task that completes when the reconnected event task & the receive loop task are both finished
-                    return TaskAsyncHelper.Interleave(ProcessReceiveRequest, Reconnected, connection);
-                }
-
-                return ProcessReceiveRequest(connection);
+                return connection.Drop().Then(() => ProcessReconnectRequest(connection));
             }
+        }
+
+        private Task ProcessConnectRequest(IReceivingConnection connection)
+        {
+            if (Connected != null)
+            {
+                // Return a task that completes when the connected event task & the receive loop task are both finished
+                return TaskAsyncHelper.Interleave(ProcessReceiveRequest, Connected, connection);
+            }
+
+            return ProcessReceiveRequest(connection);
+        }
+
+        private Task ProcessReconnectRequest(IReceivingConnection connection)
+        {
+            if (Reconnected != null)
+            {
+                // Return a task that completes when the reconnected event task & the receive loop task are both finished
+                return TaskAsyncHelper.Interleave(ProcessReceiveRequest, Reconnected, connection);
+            }
+
+            return ProcessReceiveRequest(connection);
         }
 
         public virtual Task Send(PersistentResponse response)
@@ -192,17 +202,31 @@ namespace SignalR.Transports
                 receiveAsyncTask.Then(response =>
                 {
                     LastMessageId = response.MessageId;
-                    // If the response has the Disconnect flag, just send the response and exit the loop,
-                    // the server thinks connection is gone. Otherwse, send the response then re-enter the loop
-                    Task sendTask = Send(response);
-                    if (response.Disconnect || response.TimedOut)
-                    {
-                        // Signal the tcs when the task is done
-                        return sendTask.Then(tcs => tcs.SetResult(null), taskCompletetionSource);
-                    }
 
-                    // Continue the receive loop
-                    return sendTask.Then((conn) => ProcessMessagesImpl(taskCompletetionSource, conn), connection);
+                    if (response.DropConnection)
+                    {
+                        // Stop tracking this connection
+                        HeartBeat.RemoveConnection(this);
+
+                        // Continue
+                        ProcessMessagesImpl(taskCompletetionSource, connection);
+
+                        return TaskAsyncHelper.Empty;
+                    }
+                    else
+                    {
+                        // If the response has the Disconnect flag, just send the response and exit the loop,
+                        // the server thinks connection is gone. Otherwse, send the response then re-enter the loop
+                        Task sendTask = Send(response);
+                        if (response.Disconnect || response.TimedOut)
+                        {
+                            // Signal the tcs when the task is done
+                            return sendTask.Then(tcs => tcs.SetResult(null), taskCompletetionSource);
+                        }
+
+                        // Continue the receive loop
+                        return sendTask.Then((conn) => ProcessMessagesImpl(taskCompletetionSource, conn), connection);
+                    }
                 })
                 .ContinueWith(t =>
                 {
