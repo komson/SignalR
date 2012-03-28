@@ -14,7 +14,7 @@ namespace SignalR
         {
             try
             {
-                return Task.Factory.FromAsync<HttpWebResponse>(request.BeginGetResponse, ar => (HttpWebResponse)request.EndGetResponse(ar), null);
+                return Task.Factory.FromAsync<HttpWebResponse>(request.BeginGetResponse, ar => EndGetWebResponse(request, ar), null);
             }
             catch (Exception ex)
             {
@@ -22,7 +22,19 @@ namespace SignalR
             }
         }
 
-        public static Task<Stream> GetRequestStreamAsync(this HttpWebRequest request)
+    	private static HttpWebResponse EndGetWebResponse(HttpWebRequest request, IAsyncResult ar)
+    	{
+    		try
+    		{
+				return (HttpWebResponse)request.EndGetResponse(ar);
+    		}
+    		catch (Exception)
+    		{
+    			return request.GetResponseAsync().Result;
+    		} 
+    	}
+
+    	public static Task<Stream> GetRequestStreamAsync(this HttpWebRequest request)
         {
             try
             {

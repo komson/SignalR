@@ -10,12 +10,24 @@ namespace SignalR.Client.Infrastructure
         {
             try
             {
-                return Task.Factory.FromAsync((cb, state) => stream.BeginRead(buffer, 0, buffer.Length, cb, state), ar => stream.EndRead(ar), null);
+				return Task.Factory.FromAsync((cb, state) => stream.BeginRead(buffer, 0, buffer.Length, cb, state), ar => EndRead(stream, ar, buffer), null);
             }
             catch (Exception ex)
             {
                 return TaskAsyncHelper.FromError<int>(ex);
             }
         }
+
+    	private static int EndRead(Stream stream, IAsyncResult ar, byte[] buffer)
+    	{
+    		try
+			{
+				return stream.EndRead(ar);
+    		}
+    		catch (Exception)
+    		{
+    			return stream.ReadAsync(buffer).Result;
+    		}
+    	}
     }
 }
