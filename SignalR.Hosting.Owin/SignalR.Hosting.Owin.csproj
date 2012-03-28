@@ -48,11 +48,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\CommonAssemblyInfo.cs">
@@ -61,12 +57,17 @@
     <Compile Include="..\SignalR\TaskAsyncHelper.cs">
       <Link>TaskAsyncHelper.cs</Link>
     </Compile>
+    <Compile Include="CookieManager.cs" />
     <Compile Include="OwinHost.cs" />
     <Compile Include="OwinRequest.cs" />
     <Compile Include="OwinResponse.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\SignalR.Hosting.Common\SignalR.Hosting.Common.csproj">
+      <Project>{3B71F0AE-D4B6-4F47-BF62-333D45615673}</Project>
+      <Name>SignalR.Hosting.Common</Name>
+    </ProjectReference>
     <ProjectReference Include="..\SignalR\SignalR.csproj">
       <Project>{1B9A82C4-BCA1-4834-A33E-226F17BE070B}</Project>
       <Name>SignalR</Name>

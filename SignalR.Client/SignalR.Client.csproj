@@ -45,18 +45,11 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\CommonAssemblyInfo.cs">
       <Link>Properties\CommonAssemblyInfo.cs</Link>
-    </Compile>
-    <Compile Include="..\SignalR.ScaleOut\HttpHelper.cs">
-      <Link>Infrastructure\HttpHelper.cs</Link>
     </Compile>
     <Compile Include="..\SignalR\TaskAsyncHelper.cs">
       <Link>Infrastructure\TaskAsyncHelper.cs</Link>
@@ -73,7 +66,16 @@
     <Compile Include="Hubs\IHubProxy.cs" />
     <Compile Include="Hubs\Subscription.cs" />
     <Compile Include="IConnection.cs" />
+    <Compile Include="Infrastructure\ChunkBuffer.cs" />
+    <Compile Include="Infrastructure\DefaultHttpClient.cs" />
     <Compile Include="Infrastructure\DisposableAction.cs" />
+    <Compile Include="Infrastructure\HttpHelper.cs" />
+    <Compile Include="Infrastructure\HttpWebRequestWrapper.cs" />
+    <Compile Include="Infrastructure\HttpWebResponseWrapper.cs" />
+    <Compile Include="Infrastructure\IHttpClient.cs" />
+    <Compile Include="Infrastructure\IHttpClientExtensions.cs" />
+    <Compile Include="Infrastructure\IRequest.cs" />
+    <Compile Include="Infrastructure\IResponse.cs" />
     <Compile Include="Infrastructure\StreamExtensions.cs" />
     <Compile Include="NegotiationResponse.cs" />
     <Compile Include="ObservableConnection.cs" />
