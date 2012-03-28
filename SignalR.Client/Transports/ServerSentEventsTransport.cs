@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Net;
 using System.Text;
 using System.Threading;
 using SignalR.Client.Infrastructure;
@@ -15,7 +14,12 @@ namespace SignalR.Client.Transports
         private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(2);
 
         public ServerSentEventsTransport()
-            : base("serverSentEvents")
+            : this(new DefaultHttpClient())
+        {
+        }
+
+        public ServerSentEventsTransport(IHttpClient httpClient)
+            : base(httpClient, "serverSentEvents")
         {
             ConnectionTimeout = TimeSpan.FromSeconds(2);
         }
@@ -25,12 +29,12 @@ namespace SignalR.Client.Transports
         /// </summary>
         public TimeSpan ConnectionTimeout { get; set; }
 
-        protected override void OnStart(Connection connection, string data, Action initializeCallback, Action<Exception> errorCallback)
+        protected override void OnStart(IConnection connection, string data, Action initializeCallback, Action<Exception> errorCallback)
         {
             OpenConnection(connection, data, initializeCallback, errorCallback);
         }
 
-        private void Reconnect(Connection connection, string data)
+        private void Reconnect(IConnection connection, string data)
         {
             if (!connection.IsActive)
             {
@@ -44,16 +48,16 @@ namespace SignalR.Client.Transports
             OpenConnection(connection, data, initializeCallback: null, errorCallback: null);
         }
 
-        private void OpenConnection(Connection connection, string data, Action initializeCallback, Action<Exception> errorCallback)
+        private void OpenConnection(IConnection connection, string data, Action initializeCallback, Action<Exception> errorCallback)
         {
             // If we're reconnecting add /connect to the url
             bool reconnecting = initializeCallback == null;
 
             var url = (reconnecting ? connection.Url : connection.Url + "connect") + GetReceiveQueryString(connection, data);
 
-            Action<HttpWebRequest> prepareRequest = PrepareRequest(connection);
+            Action<IRequest> prepareRequest = PrepareRequest(connection);
 
-            HttpHelper.GetAsync(url, request =>
+            _httpClient.GetAsync(url, request =>
             {
                 prepareRequest(request);
 
@@ -135,7 +139,7 @@ namespace SignalR.Client.Transports
             }
         }
 
-        protected override void OnBeforeAbort(Connection connection)
+        protected override void OnBeforeAbort(IConnection connection)
         {
             // Get the reader from the connection and stop it
             var reader = connection.GetValue<AsyncStreamReader>(ReaderKey);
@@ -156,12 +160,12 @@ namespace SignalR.Client.Transports
             private readonly ChunkBuffer _buffer;
             private readonly Action _initializeCallback;
             private readonly Action _closeCallback;
-            private readonly Connection _connection;
+            private readonly IConnection _connection;
             private int _processingQueue;
             private int _reading;
             private bool _processingBuffer;
 
-            public AsyncStreamReader(Stream stream, Connection connection, Action initializeCallback, Action closeCallback)
+            public AsyncStreamReader(Stream stream, IConnection connection, Action initializeCallback, Action closeCallback)
             {
                 _initializeCallback = initializeCallback;
                 _closeCallback = closeCallback;
@@ -395,54 +399,6 @@ namespace SignalR.Client.Transports
             {
                 Id,
                 Data
-            }
-
-            private class ChunkBuffer
-            {
-                private int _offset;
-                private readonly StringBuilder _buffer;
-                private readonly StringBuilder _lineBuilder;
-
-                public ChunkBuffer()
-                {
-                    _buffer = new StringBuilder();
-                    _lineBuilder = new StringBuilder();
-                }
-
-                public bool HasChunks
-                {
-                    get
-                    {
-                        return _offset < _buffer.Length;
-                    }
-                }
-
-                public string ReadLine()
-                {
-                    for (int i = _offset; i < _buffer.Length; i++, _offset++)
-                    {
-                        if (_buffer[i] == '\n')
-                        {
-                            _buffer.Remove(0, _offset + 1);
-                            string line = _lineBuilder.ToString();
-#if WINDOWS_PHONE
-                            _lineBuilder.Length = 0;
-#else
-                            _lineBuilder.Clear();
-#endif
-                            _offset = 0;
-                            return line;
-                        }
-                        _lineBuilder.Append(_buffer[i]);
-                    }
-
-                    return null;
-                }
-
-                public void Add(byte[] buffer, int length)
-                {
-                    _buffer.Append(Encoding.UTF8.GetString(buffer, 0, length));
-                }
             }
         }
     }

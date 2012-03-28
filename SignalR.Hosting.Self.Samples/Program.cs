@@ -18,9 +18,6 @@ namespace SignalR.Hosting.Self.Samples
             // Map /echo to the persistent connection
             server.MapConnection<MyConnection>("/echo");
 
-            // Enable the hubs route (/signalr)
-            server.EnableHubs();
-
             server.Start();
 
             Console.WriteLine("Server running on {0}", url);
@@ -30,7 +27,7 @@ namespace SignalR.Hosting.Self.Samples
 
         public class MyConnection : PersistentConnection
         {
-            protected override Task OnConnectedAsync(IRequest request, IEnumerable<string> groups, string connectionId)
+            protected override Task OnConnectedAsync(IRequest request, string connectionId)
             {
                 return Connection.Broadcast(String.Format("{0} connected from {1}", connectionId, request.Headers["User-Agent"]));
             }

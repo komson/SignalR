@@ -88,7 +88,7 @@ namespace SignalR
 
             _transport.Connected = () =>
             {
-                return OnConnectedAsync(context.Request, groups, connectionId);
+                return OnConnectedAsync(context.Request, connectionId);
             };
 
             _transport.Reconnected = () =>
@@ -135,7 +135,7 @@ namespace SignalR
             };
         }
 
-        protected virtual Task OnConnectedAsync(IRequest request, IEnumerable<string> groups, string connectionId)
+        protected virtual Task OnConnectedAsync(IRequest request, string connectionId)
         {
             OnClientConnected(connectionId);
             return TaskAsyncHelper.Empty;
@@ -166,7 +166,7 @@ namespace SignalR
         public Task Send(object value)
         {
             OnSending();
-            return _transport.Send(value);
+            return Connection.Send(value);
         }
 
         public Task Send(string connectionId, object value)
@@ -207,7 +207,7 @@ namespace SignalR
             return context.Response.EndAsync(_jsonSerializer.Stringify(new
             {
                 Url = context.Request.Url.LocalPath.Replace("/negotiate", ""),
-                ConnectionId = _connectionIdFactory.CreateConnectionId(context.Request),
+                ConnectionId = _connectionIdFactory.CreateConnectionId(context.Request, context.User),
                 TryWebSockets = context.SupportsWebSockets(),
                 WebSocketServerUrl = context.WebSocketServerUrl(),
                 ProtocolVersion = "1.0"

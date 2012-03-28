@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using SignalR.Client.Infrastructure;
 
 namespace SignalR.Client.Transports
 {
@@ -7,10 +8,23 @@ namespace SignalR.Client.Transports
         // Transport that's in use
         private IClientTransport _transport;
 
-        // List of transports in fallback order
-        private readonly IClientTransport[] _transports = new IClientTransport[] { new ServerSentEventsTransport(), new LongPollingTransport() };
+        private readonly IHttpClient _httpClient;
 
-        public Task Start(Connection connection, string data)
+        // List of transports in fallback order
+        private readonly IClientTransport[] _transports;
+
+        public AutoTransport(IHttpClient httpClient)
+        {
+            _httpClient = httpClient;
+            _transports = new IClientTransport[] { new ServerSentEventsTransport(httpClient), new LongPollingTransport(httpClient) };
+        }
+
+        public Task<NegotiationResponse> Negotiate(IConnection connection)
+        {
+            return HttpBasedTransport.GetNegotiationResponse(_httpClient, connection);
+        }
+
+        public Task Start(IConnection connection, string data)
         {
             var tcs = new TaskCompletionSource<object>();
 
@@ -20,7 +34,7 @@ namespace SignalR.Client.Transports
             return tcs.Task;
         }
 
-        private void ResolveTransport(Connection connection, string data, TaskCompletionSource<object> tcs, int index)
+        private void ResolveTransport(IConnection connection, string data, TaskCompletionSource<object> tcs, int index)
         {
             // Pick the current transport
             IClientTransport transport = _transports[index];
@@ -53,12 +67,12 @@ namespace SignalR.Client.Transports
             });
         }
 
-        public Task<T> Send<T>(Connection connection, string data)
+        public Task<T> Send<T>(IConnection connection, string data)
         {
             return _transport.Send<T>(connection, data);
         }
 
-        public void Stop(Connection connection)
+        public void Stop(IConnection connection)
         {
             _transport.Stop(connection);
         }

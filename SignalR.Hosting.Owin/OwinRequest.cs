@@ -2,12 +2,14 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using Gate;
-using SignalR.Hosting;
+using SignalR.Hosting.Common;
 
 namespace SignalR.Hosting.Owin
 {
     public class OwinRequest : IRequest
     {
+        private readonly CookieManager _cookies;
+
         public OwinRequest(IDictionary<string, object> environment, string body)
         {
             var env = new Gate.Environment(environment);
@@ -24,15 +26,17 @@ namespace SignalR.Hosting.Owin
                 }                
             }
 
-            Cookies = new NameValueCollection();
-            QueryString = ParseDelimited(env.QueryString);
-            Form = ParseDelimited(body);
+            _cookies = new CookieManager();
+            QueryString = HttpUtility.ParseDelimited(env.QueryString);
+            Form = HttpUtility.ParseDelimited(body);
         }
 
-        public NameValueCollection Cookies
+        public IRequestCookieCollection Cookies
         {
-            get;
-            private set;
+            get
+            {
+                return _cookies;
+            }
         }
 
         public NameValueCollection Form
@@ -72,46 +76,6 @@ namespace SignalR.Hosting.Owin
             }
 
             return new Uri(url);
-        }
-
-        private NameValueCollection ParseDelimited(string s)
-        {
-            var nvc = new NameValueCollection();
-            if (s == null)
-            {
-                return nvc;
-            }
-
-            foreach (var pair in s.Split('&'))
-            {
-                var kvp = pair.Split(new[] { "=" }, StringSplitOptions.RemoveEmptyEntries);
-                if (kvp.Length == 0)
-                {
-                    continue;
-                }
-
-                string key = kvp[0].Trim();
-                if (String.IsNullOrEmpty(key))
-                {
-                    continue;
-                }
-                string value = kvp.Length > 1 ? kvp[1].Trim() : null;
-                nvc[key] = UrlDecode(value);
-            }
-
-            return nvc;
-        }
-
-        private static string UrlDecode(string url)
-        {
-            if (url == null)
-            {
-                return null;
-            }
-
-            // HACK: Uri.UnescapeDataString doesn't seem to handle +
-            // TODO: Copy impl from System.Web.HttpUtility.UrlDecode
-            return Uri.UnescapeDataString(url).Replace("+", " ");
-        }
+        }        
     }
 }

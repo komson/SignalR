@@ -4,7 +4,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Owin;
-using SignalR.Hosting;
 
 namespace SignalR.Hosting.Owin
 {
@@ -14,10 +13,12 @@ namespace SignalR.Hosting.Owin
         private Func<ArraySegment<byte>, Action, bool> _responseNext;
         private Action<Exception> _responseError;
         private Action _responseCompete;
+        private readonly CookieManager _cookies;
 
         public OwinResponse(ResultDelegate responseCallback)
         {
             _responseCallback = responseCallback;
+            _cookies = new CookieManager();
 
             IsClientConnected = true;
         }

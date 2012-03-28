@@ -12,7 +12,7 @@
 
   <PropertyGroup>
     <MajorVersion>0</MajorVersion>
-    <MinorVersion>4</MinorVersion>
+    <MinorVersion>5</MinorVersion>
     <Version>$(MajorVersion).$(MinorVersion).0</Version>
   </PropertyGroup>
 
@@ -23,7 +23,7 @@
     <TestProjects Include="$(ProjectRoot)\SignalR.Tests\bin\$(Configuration)\SignalR.Tests.dll" />
   </ItemGroup>
 
-  <Target Name="Go" DependsOnTargets="Build; RunTests; BuildPackages">
+  <Target Name="Go" DependsOnTargets="Build; RunTests;">
   </Target>
 
   <Target Name="RunTests">
@@ -46,7 +46,7 @@
 
     <MSBuild Projects="$(ProjectRoot)\SignalR.Silverlight.sln"
              Targets="Build"
-             Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight\v4.0')"
+             Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight\v4.0') And Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight\v5.0')"
              Properties="Configuration=$(Configuration)" />
   </Target>
 
@@ -59,6 +59,7 @@
       <Projects Include="$(ProjectRoot)\SignalR.Client\SignalR.Client.csproj" />
       <Projects Include="$(ProjectRoot)\SignalR.Hosting.Self\SignalR.Hosting.Self.csproj" />
       <Projects Include="$(ProjectRoot)\SignalR.Hosting.Owin\SignalR.Hosting.Owin.csproj" />
+      <Projects Include="$(ProjectRoot)\SignalR.Hosting.Common\SignalR.Hosting.Common.csproj" />
     </ItemGroup>
     
     <MSBuild Projects="%(Projects.Identity)"
@@ -75,6 +76,11 @@
              Targets="Build"
              Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight\v4.0')"
              Properties="BuildPackage=true;Version=$(Version);PackageOutputDir=$(ArtifactsDir);Configuration=$(Configuration)" />
+
+    <MSBuild Projects="$(ProjectRoot)\SignalR.Client.Silverlight5\SignalR.Client.Silverlight5.csproj"
+         Targets="Build"
+         Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight\v5.0')"
+         Properties="BuildPackage=true;Version=$(Version);PackageOutputDir=$(ArtifactsDir);Configuration=$(Configuration)" />
 
     <Exec Command="&quot;$(NuGetExePath)&quot; pack &quot;%(JsPackage.Identity)&quot; -o &quot;$(ArtifactsDir)&quot; -p Version=$(Version) -basePath &quot;$(ProjectRoot)\SignalR&quot;"
             LogStandardErrorAsError="true" />

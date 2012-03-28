@@ -14,7 +14,7 @@ namespace SignalR.Hubs
         /// <summary>
         /// Gets the cookies for the request
         /// </summary>
-        public NameValueCollection Cookies { get; private set; }
+        public IRequestCookieCollection RequestCookies { get; private set; }
 
         /// <summary>
         /// Gets the headers for the request
@@ -31,7 +31,7 @@ namespace SignalR.Hubs
         public HubContext(HostContext context, string connectionId)
         {
             ConnectionId = connectionId;
-            Cookies = context.Request.Cookies;
+            RequestCookies = context.Request.Cookies;
             Headers = context.Request.Headers;
             QueryString = context.Request.QueryString;
             User = context.User;

@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using SignalR.Hosting;
 
 namespace SignalR.Hubs
 {
     public interface IConnected
     {
-        Task Connect(IEnumerable<string> groups);
+        Task Connect();
         Task Reconnect(IEnumerable<string> groups);
     }
 }

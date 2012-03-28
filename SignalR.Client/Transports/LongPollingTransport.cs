@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Threading;
+using SignalR.Client.Infrastructure;
 
 namespace SignalR.Client.Transports
 {
@@ -9,17 +10,22 @@ namespace SignalR.Client.Transports
         public TimeSpan ReconnectDelay { get; set; }
 
         public LongPollingTransport()
-            : base("longPolling")
+            : this(new DefaultHttpClient())
+        {
+        }
+
+        public LongPollingTransport(IHttpClient httpClient)
+            : base(httpClient, "longPolling")
         {
             ReconnectDelay = TimeSpan.FromSeconds(5);
         }
 
-        protected override void OnStart(Connection connection, string data, Action initializeCallback, Action<Exception> errorCallback)
+        protected override void OnStart(IConnection connection, string data, Action initializeCallback, Action<Exception> errorCallback)
         {
             PollingLoop(connection, data, initializeCallback, errorCallback);
         }
 
-        private void PollingLoop(Connection connection, string data, Action initializeCallback, Action<Exception> errorCallback, bool raiseReconnect = false)
+        private void PollingLoop(IConnection connection, string data, Action initializeCallback, Action<Exception> errorCallback, bool raiseReconnect = false)
         {
             string url = connection.Url;
             var reconnectTokenSource = new CancellationTokenSource();
@@ -32,7 +38,7 @@ namespace SignalR.Client.Transports
 
             url += GetReceiveQueryString(connection, data);
 
-            HttpHelper.PostAsync(url, PrepareRequest(connection)).ContinueWith(task =>
+            _httpClient.PostAsync(url, PrepareRequest(connection)).ContinueWith(task =>
             {
                 // Clear the pending request
                 connection.Items.Remove(HttpRequestKey);
@@ -140,7 +146,7 @@ namespace SignalR.Client.Transports
         /// <summary>
         /// 
         /// </summary>
-        private static void FireReconnected(Connection connection, CancellationTokenSource reconnectTokenSource, ref int reconnectedFired)
+        private static void FireReconnected(IConnection connection, CancellationTokenSource reconnectTokenSource, ref int reconnectedFired)
         {
             if (!reconnectTokenSource.IsCancellationRequested)
             {

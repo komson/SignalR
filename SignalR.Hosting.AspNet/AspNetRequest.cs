@@ -2,24 +2,20 @@
 using System.Collections.Specialized;
 using System.Web;
 using Microsoft.Web.Infrastructure.DynamicValidationHelper;
-using SignalR.Hosting;
 
 namespace SignalR.Hosting.AspNet
 {
     public class AspNetRequest : IRequest
     {
         private readonly HttpRequestBase _request;
+        private readonly HttpCookieCollectionWrapper _cookies;
         private NameValueCollection _form;
         private NameValueCollection _queryString;
 
         public AspNetRequest(HttpRequestBase request)
         {
             _request = request;
-            Cookies = new NameValueCollection();
-            foreach (string key in request.Cookies)
-            {
-                Cookies.Add(key, request.Cookies[key].Value);
-            }
+            _cookies = new HttpCookieCollectionWrapper(request.Cookies);
 
             ResolveFormAndQueryString();
         }
@@ -56,10 +52,12 @@ namespace SignalR.Hosting.AspNet
             }
         }
 
-        public NameValueCollection Cookies
+        public IRequestCookieCollection Cookies
         {
-            get;
-            private set;
+            get
+            {
+                return _cookies;
+            }
         }
 
         private void ResolveFormAndQueryString()

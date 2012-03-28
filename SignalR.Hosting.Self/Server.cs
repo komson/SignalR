@@ -1,38 +1,38 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
-using SignalR.Hosting;
+using SignalR.Hosting.Common;
 using SignalR.Hosting.Self.Infrastructure;
-using SignalR.Hubs;
-using SignalR.Infrastructure;
 
 namespace SignalR.Hosting.Self
 {
-    public class Server
+    public class Server : RoutingHost
     {
         private readonly string _url;
         private readonly HttpListener _listener;
-        private readonly Dictionary<string, Type> _connectionMapping = new Dictionary<string, Type>();
-        private bool _hubsEnabled;
+
+        private Timer _heartBeat;
+        private ConcurrentDictionary<HttpListenerResponseWrapper, bool> _aliveConnections = new ConcurrentDictionary<HttpListenerResponseWrapper, bool>();
+        private int _checkingConnections;
 
         public Action<HostContext> OnProcessRequest { get; set; }
 
-        public IDependencyResolver DependencyResolver { get; private set; }
-
         public Server(string url)
-            : this(url, new DefaultDependencyResolver())
+            : this(url, Global.DependencyResolver)
         {
 
         }
 
         public Server(string url, IDependencyResolver resolver)
+            : base(resolver)
         {
             _url = url;
             _listener = new HttpListener();
             _listener.Prefixes.Add(url);
-            DependencyResolver = resolver;
         }
 
         public void Start()
@@ -45,32 +45,12 @@ namespace SignalR.Hosting.Self
         public void Stop()
         {
             _listener.Stop();
-        }
 
-        public void MapConnection<T>(string path) where T : PersistentConnection
-        {
-            if (!_connectionMapping.ContainsKey(path))
+            if (_heartBeat != null)
             {
-                _connectionMapping.Add(path, typeof(T));
+                _heartBeat.Dispose();
+                _heartBeat = null;
             }
-        }
-
-        public void EnableHubs()
-        {
-            _hubsEnabled = true;
-        }
-
-        public bool TryGetConnection(string path, out PersistentConnection connection)
-        {
-            connection = null;
-
-            if (_hubsEnabled && path.StartsWith("/signalr", StringComparison.OrdinalIgnoreCase))
-            {
-                connection = new HubDispatcher("/signalr");
-                return true;
-            }
-
-            return TryGetMappedConnection(path, out connection);
         }
 
         private void ReceiveLoop()
@@ -81,6 +61,16 @@ namespace SignalR.Hosting.Self
                 try
                 {
                     context = _listener.EndGetContext(ar);
+
+                    // Start the timer the checks for connection activity
+                    if (_heartBeat == null)
+                    {
+                        var interval = TimeSpan.FromTicks(Configuration.HeartBeatInterval.Ticks / 2);
+                        _heartBeat = new Timer(_ => CheckConnections(),
+                                               null,
+                                               interval,
+                                               interval);
+                    }
                 }
                 catch (Exception)
                 {
@@ -126,6 +116,9 @@ namespace SignalR.Hosting.Self
                     {
                         OnProcessRequest(hostContext);
                     }
+
+                    // Add this response to the list of live connections
+                    _aliveConnections.TryAdd(response, true);
 #if DEBUG
                     hostContext.Items[HostConstants.DebugMode] = true;
 #endif
@@ -145,25 +138,7 @@ namespace SignalR.Hosting.Self
             }
         }
 
-        private bool TryGetMappedConnection(string path, out PersistentConnection connection)
-        {
-            connection = null;
-
-            foreach (var pair in _connectionMapping)
-            {
-                // If the url matches then create the connection type
-                if (path.StartsWith(pair.Key, StringComparison.OrdinalIgnoreCase))
-                {
-                    var factory = new PersistentConnectionFactory(DependencyResolver);
-                    connection = factory.CreateInstance(pair.Value);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private string ResolvePath(Uri url)
+        public string ResolvePath(Uri url)
         {
             string baseUrl = url.GetComponents(UriComponents.Scheme | UriComponents.HostAndPort | UriComponents.Path, UriFormat.SafeUnescaped);
 
@@ -179,6 +154,38 @@ namespace SignalR.Hosting.Self
             }
 
             return path;
+        }
+
+        /// <summary>
+        /// Checks to see if any of the active connections are still alive by writing a byte to the output
+        /// stream and checking for an exception.
+        /// </summary>
+        private void CheckConnections()
+        {
+            if (Interlocked.Exchange(ref _checkingConnections, 1) == 1)
+            {
+                return;
+            }
+
+            if (_aliveConnections.Count > 0)
+            {
+                var dead = new List<HttpListenerResponseWrapper>();
+                foreach (var c in _aliveConnections.Keys)
+                {
+                    if (!c.Ping())
+                    {
+                        dead.Add(c);
+                    }
+                }
+
+                foreach (var c in dead)
+                {
+                    bool ignore;
+                    _aliveConnections.TryRemove(c, out ignore);
+                }
+            }
+
+            _checkingConnections = 0;
         }
     }
 }

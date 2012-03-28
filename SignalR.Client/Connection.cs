@@ -5,9 +5,8 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
+using SignalR.Client.Infrastructure;
 using SignalR.Client.Transports;
 
 namespace SignalR.Client
@@ -18,8 +17,6 @@ namespace SignalR.Client
 
         private IClientTransport _transport;
         private bool _initialized;
-
-        private readonly SynchronizationContext _syncContext;
 
         public event Action<string> Received;
         public event Action<Exception> Error;
@@ -54,14 +51,13 @@ namespace SignalR.Client
             QueryString = queryString;
             Groups = Enumerable.Empty<string>();
             Items = new ConcurrentDictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-            _syncContext = SynchronizationContext.Current;
         }
 
         public CookieContainer CookieContainer { get; set; }
 
         public ICredentials Credentials { get; set; }
 
-        public IEnumerable<string> Groups { get; internal set; }
+        public IEnumerable<string> Groups { get; set; }
 
         public Func<string> Sending { get; set; }
 
@@ -79,11 +75,16 @@ namespace SignalR.Client
 
         public Task Start()
         {
+            return Start(new DefaultHttpClient());
+        }
+
+        public Task Start(IHttpClient httpClient)
+        {
 #if WINDOWS_PHONE || SILVERLIGHT
             return Start(new LongPollingTransport());
 #else
             // Pick the best transport supported by the client
-            return Start(new AutoTransport());
+            return Start(new AutoTransport(httpClient));
 #endif
         }
 
@@ -98,51 +99,23 @@ namespace SignalR.Client
 
             _transport = transport;
 
-            return Negotiate();
+            return Negotiate(transport);
         }
 
-        private Task Negotiate()
+        private Task Negotiate(IClientTransport transport)
         {
-            string negotiateUrl = Url + "negotiate";
-
             var negotiateTcs = new TaskCompletionSource<object>();
 
-            HttpHelper.PostAsync(negotiateUrl, PrepareRequest).Then(response =>
+            transport.Negotiate(this).Then(negotiationResponse =>
             {
-                string raw = response.ReadAsString();
-
-                if (raw == null)
-                {
-                    throw new InvalidOperationException("Server negotiation failed.");
-                }
-
-                var negotiationResponse = JsonConvert.DeserializeObject<NegotiationResponse>(raw);
-
                 VerifyProtocolVersion(negotiationResponse.ProtocolVersion);
 
                 ConnectionId = negotiationResponse.ConnectionId;
 
                 if (Sending != null)
                 {
-                    if (_syncContext != null)
-                    {
-                        var dataTcs = new TaskCompletionSource<string>();
-                        _syncContext.Post(_ =>
-                        {
-                            // Raise the event on the sync context
-                            dataTcs.SetResult(Sending());
-                        },
-                        null);
-
-                        // Get the data and start the transport
-                        dataTcs.Task.Then(data => StartTransport(data))
-                                    .ContinueWith(negotiateTcs);
-                    }
-                    else
-                    {
-                        var data = Sending();
-                        StartTransport(data).ContinueWith(negotiateTcs);
-                    }
+                    var data = Sending();
+                    StartTransport(data).ContinueWith(negotiateTcs);
                 }
                 else
                 {
@@ -160,7 +133,7 @@ namespace SignalR.Client
                              .Then(() => _initialized = true);
         }
 
-        private void VerifyProtocolVersion(string versionString)
+        private static void VerifyProtocolVersion(string versionString)
         {
             Version version;
             if (String.IsNullOrEmpty(versionString) ||
@@ -173,26 +146,19 @@ namespace SignalR.Client
 
         public virtual void Stop()
         {
-            // Do nothing if the connection was never started
-            if (!_initialized)
-            {
-                return;
-            }
-
             try
             {
+                // Do nothing if the connection was never started
+                if (!_initialized)
+                {
+                    return;
+                }
+
                 _transport.Stop(this);
 
                 if (Closed != null)
                 {
-                    if (_syncContext != null)
-                    {
-                        _syncContext.Post(_ => Closed(), null);
-                    }
-                    else
-                    {
-                        Closed();
-                    }
+                    Closed();
                 }
             }
             finally
@@ -217,52 +183,31 @@ namespace SignalR.Client
             return _transport.Send<T>(this, data);
         }
 
-        internal void OnReceived(string message)
+        void IConnection.OnReceived(string message)
         {
             if (Received != null)
             {
-                if (_syncContext != null)
-                {
-                    _syncContext.Post(msg => Received((string)msg), message);
-                }
-                else
-                {
-                    Received(message);
-                }
+                Received(message);
             }
         }
 
-        internal void OnError(Exception error)
+        void IConnection.OnError(Exception error)
         {
             if (Error != null)
             {
-                if (_syncContext != null)
-                {
-                    _syncContext.Post(err => Error((Exception)err), error);
-                }
-                else
-                {
-                    Error(error);
-                }
+                Error(error);
             }
         }
 
-        internal void OnReconnected()
+        void IConnection.OnReconnected()
         {
             if (Reconnected != null)
             {
-                if (_syncContext != null)
-                {
-                    _syncContext.Post(_ => Reconnected(), null);
-                }
-                else
-                {
-                    Reconnected();
-                }
+                Reconnected();
             }
         }
 
-        protected internal virtual void PrepareRequest(HttpWebRequest request)
+        void IConnection.PrepareRequest(IRequest request)
         {
 #if WINDOWS_PHONE
             // http://msdn.microsoft.com/en-us/library/ff637320(VS.95).aspx

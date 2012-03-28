@@ -12,13 +12,13 @@ namespace SignalR.Hosting.Owin.Samples
         private static readonly Dictionary<string, string> _users = new Dictionary<string, string>();
         private static readonly Dictionary<string, string> _clients = new Dictionary<string, string>();
 
-        protected override Task OnConnectedAsync(IRequest request, IEnumerable<string> groups, string connectionId)
+        protected override Task OnConnectedAsync(IRequest request, string connectionId)
         {
-            var userName = request.Cookies["user"];
-            if (!String.IsNullOrEmpty(userName))
+            var userNameCookie = request.Cookies["user"];
+            if (userNameCookie != null)
             {
-                _clients[connectionId] = userName;
-                _users[userName] = connectionId;
+                _clients[connectionId] = userNameCookie.Value;
+                _users[userNameCookie.Value] = connectionId;
             }
 
             string user = GetUser(connectionId);

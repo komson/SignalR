@@ -2,9 +2,7 @@
 using System.Diagnostics;
 using System.Threading;
 using System.Web.Routing;
-using SignalR.Hosting.AspNet;
 using SignalR.Hosting.AspNet.Routing;
-using SignalR.Infrastructure;
 using SignalR.Samples.App_Start;
 using SignalR.Samples.Hubs.DemoHub;
 
@@ -15,13 +13,11 @@ namespace SignalR.Samples.App_Start
     public class Startup
     {
         public static void Start()
-        { 
+        {
             ThreadPool.QueueUserWorkItem(_ =>
             {
-                var connectionManager = AspNetHost.DependencyResolver.Resolve<IConnectionManager>();
-
-                var connection = connectionManager.GetConnection<Streaming.Streaming>();
-                var demoClients = connectionManager.GetClients<DemoHub>();
+                var connection = Global.Connections.GetConnection<Streaming.Streaming>();
+                var demoClients = Global.Connections.GetClients<DemoHub>();
 
                 while (true)
                 {
@@ -37,7 +33,7 @@ namespace SignalR.Samples.App_Start
                     Thread.Sleep(2000);
                 }
             });
-
+            
             RouteTable.Routes.MapConnection<Raw.Raw>("raw", "raw/{*operation}");
             RouteTable.Routes.MapConnection<Streaming.Streaming>("streaming", "streaming/{*operation}");
         }

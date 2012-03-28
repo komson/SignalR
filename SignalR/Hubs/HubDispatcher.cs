@@ -133,9 +133,9 @@ namespace SignalR.Hubs
             return base.ProcessRequestAsync(context);
         }
 
-        protected override Task OnConnectedAsync(IRequest request, IEnumerable<string> groups, string connectionId)
+        protected override Task OnConnectedAsync(IRequest request, string connectionId)
         {
-            return ExecuteHubEventAsync<IConnected>(connectionId, hub => hub.Connect(groups));
+            return ExecuteHubEventAsync<IConnected>(connectionId, hub => hub.Connect());
         }
 
         protected override Task OnReconnectedAsync(IRequest request, IEnumerable<string> groups, string connectionId)
@@ -238,7 +238,7 @@ namespace SignalR.Hubs
                 StackTrace = stackTrace
             };
 
-            return Send(hubResult);
+            return _transport.Send(hubResult);
         }
 
         protected override IConnection CreateConnection(string connectionId, IEnumerable<string> groups, IRequest request)
