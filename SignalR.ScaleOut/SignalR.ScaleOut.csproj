@@ -32,6 +32,12 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>..\SignalR.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Web.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
     <Reference Include="System" />
@@ -67,6 +73,9 @@
     <Compile Include="SQLQueryNotificationsSignalBus.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\SignalR.snk">
+      <Link>SignalR.snk</Link>
+    </None>
     <None Include="Properties\SignalR.ScaleOut.nuspec" />
     <EmbeddedResource Include="SignalRSignalsTable.sql" />
   </ItemGroup>
