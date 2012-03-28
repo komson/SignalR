@@ -1,22 +1,36 @@
 ﻿using System;
+using SignalR.Client._20.Infrastructure;
 
 namespace SignalR.Client._20.Transports
 {
     public class AutoTransport : IClientTransport
-    {
-        // Transport that's in use
-        private IClientTransport _transport;
+	{
+		// Transport that's in use
+		private IClientTransport _transport;
 
-        // List of transports in fallback order
-		private readonly IClientTransport[] _transports = new IClientTransport[] { new ServerSentEventsTransport(), new LongPollingTransport() };
+		private readonly IHttpClient _httpClient;
 
-        public void Start(Connection connection, string data)
+		// List of transports in fallback order
+		private readonly IClientTransport[] _transports;
+
+		public AutoTransport(IHttpClient httpClient)
+		{
+			_httpClient = httpClient;
+			_transports = new IClientTransport[] { new ServerSentEventsTransport(httpClient), new LongPollingTransport(httpClient) };
+		}
+
+		public EventSignal<NegotiationResponse> Negotiate(IConnection connection)
+		{
+			return HttpBasedTransport.GetNegotiationResponse(_httpClient, connection);
+		}
+
+    	public void Start(IConnection connection, string data)
         {
             // Resolve the transport
             ResolveTransport(connection, data, 0);
         }
 
-		private void ResolveTransport(Connection connection, string data, int index)
+		private void ResolveTransport(IConnection connection, string data, int index)
 		{
 			// Pick the current transport
 			IClientTransport transport = _transports[index];
@@ -42,12 +56,12 @@ namespace SignalR.Client._20.Transports
 			}
 		}
 
-    	public EventSignal<T> Send<T>(Connection connection, string data)
+    	public EventSignal<T> Send<T>(IConnection connection, string data)
         {
             return _transport.Send<T>(connection, data);
         }
 
-        public void Stop(Connection connection)
+        public void Stop(IConnection connection)
         {
             _transport.Stop(connection);
         }

@@ -6,7 +6,7 @@ using System.Globalization;
 using System.Net;
 using System.Reflection;
 using System.Threading;
-using dotnet2::Newtonsoft.Json;
+using SignalR.Client._20.Infrastructure;
 using SignalR.Client._20.Transports;
 
 namespace SignalR.Client._20
@@ -17,8 +17,6 @@ namespace SignalR.Client._20
 
 		private IClientTransport _transport;
 		private bool _initialized;
-
-		private readonly SynchronizationContext _syncContext;
 
 		public event Action<string> Received;
 		public event Action<Exception> Error;
@@ -53,14 +51,13 @@ namespace SignalR.Client._20
 			QueryString = queryString;
 			Groups = new List<string>();
 			Items = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-			_syncContext = null;// SynchronizationContext.Current;
 		}
 
 		public CookieContainer CookieContainer { get; set; }
 
 		public ICredentials Credentials { get; set; }
 
-		public IEnumerable<string> Groups { get; internal set; }
+		public IEnumerable<string> Groups { get; set; }
 
 		public dotnet2::System.Func<string> Sending { get; set; }
 
@@ -79,7 +76,12 @@ namespace SignalR.Client._20
 		public void Start()
 		{
 			// Pick the best transport supported by the client
-			Start(new AutoTransport());
+			Start(new DefaultHttpClient());
+		}
+
+		public void Start(IHttpClient httpClient)
+		{
+			Start(new AutoTransport(httpClient));
 		}
 
 		public virtual void Start(IClientTransport transport)
@@ -93,50 +95,25 @@ namespace SignalR.Client._20
 
 			_transport = transport;
 
-			Negotiate();
+			Negotiate(transport);
 		}
 
-		private void Negotiate()
+		private void Negotiate(IClientTransport transport)
 		{
-			string negotiateUrl = Url + "negotiate";
-			
 			ManualResetEvent manualResetEvent = new ManualResetEvent(false);
 			
-			var signal = HttpHelper.PostAsync(negotiateUrl);
+			var signal = transport.Negotiate(this);
 			signal.Finished += (sender, e) =>
 			                   	{
-			                   		string raw = HttpHelper.ReadAsString(e.Result.Result);
-			                   		if (raw == null)
-			                   		{
-			                   			throw new InvalidOperationException("Server negotiation failed.");
-			                   		}
+			                   		VerifyProtocolVersion(e.Result.ProtocolVersion);
 
-			                   		var negotiationResponse = JsonConvert.DeserializeObject<NegotiationResponse>(raw);
+			                   		ConnectionId = e.Result.ConnectionId;
 
-			                   		VerifyProtocolVersion(negotiationResponse.ProtocolVersion);
-
-			                   		ConnectionId = negotiationResponse.ConnectionId;
-
-			                   		
 									if (Sending!=null)
 									{
-										/* Ignore for now!
-										 * if (_syncContext!=null)
-										{
-											string data;
-											_syncContext.Post(_ =>
-											                  	{
-											                  		data = Sending();
-																	StartTransport(data);
-																	manualResetEvent.Set();
-											                  	}, null);
-										}
-										else*/
-										{
 											var data = Sending();
 											StartTransport(data);
 											manualResetEvent.Set();
-										}
 									}
 									else
 									{
@@ -167,26 +144,19 @@ namespace SignalR.Client._20
 
 		public virtual void Stop()
 		{
-			// Do nothing if the connection was never started
-			if (!_initialized)
-			{
-				return;
-			}
-
 			try
 			{
+				// Do nothing if the connection was never started
+				if (!_initialized)
+				{
+					return;
+				}
+
 				_transport.Stop(this);
 
 				if (Closed != null)
 				{
-					if (_syncContext != null)
-					{
-						_syncContext.Post(_ => Closed(), null);
-					}
-					else
-					{
-						Closed();
-					}
+					Closed();
 				}
 			}
 			finally
@@ -211,52 +181,31 @@ namespace SignalR.Client._20
 			return _transport.Send<T>(this, data);
 		}
 
-		internal void OnReceived(string message)
+		void IConnection.OnReceived(string message)
 		{
 			if (Received != null)
 			{
-				if (_syncContext != null)
-				{
-					_syncContext.Post(msg => Received((string)msg), message);
-				}
-				else
-				{
-					Received(message);
-				}
+				Received(message);
 			}
 		}
 
-		internal void OnError(Exception error)
+		void IConnection.OnError(Exception error)
 		{
 			if (Error != null)
 			{
-				if (_syncContext != null)
-				{
-					_syncContext.Post(err => Error((Exception)err), error);
-				}
-				else
-				{
-					Error(error);
-				}
+				Error(error);
 			}
 		}
 
-		internal void OnReconnected()
+		void IConnection.OnReconnected()
 		{
 			if (Reconnected != null)
 			{
-				if (_syncContext != null)
-				{
-					_syncContext.Post(_ => Reconnected(), null);
-				}
-				else
-				{
-					Reconnected();
-				}
+				Reconnected();
 			}
 		}
 
-		internal void PrepareRequest(HttpWebRequest request)
+		void IConnection.PrepareRequest(IRequest request)
 		{
 #if WINDOWS_PHONE
             // http://msdn.microsoft.com/en-us/library/ff637320(VS.95).aspx

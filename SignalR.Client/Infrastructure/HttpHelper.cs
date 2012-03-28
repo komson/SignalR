@@ -98,7 +98,7 @@ namespace SignalR
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("Failed to read resonse: {0}", ex);
+                Debug.WriteLine("Failed to read response: {0}", ex);
                 // Swallow exceptions when reading the response stream and just try again.
                 return null;
             }

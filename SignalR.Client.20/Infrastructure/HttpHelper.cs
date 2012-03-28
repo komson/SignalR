@@ -6,7 +6,7 @@ using System.Net;
 using System.Text;
 using SignalR.Client._20.Transports;
 
-namespace SignalR.Client._20
+namespace SignalR.Client._20.Infrastructure
 {
 	class HttpHelper
 	{
@@ -29,7 +29,7 @@ namespace SignalR.Client._20
 		{
 			return PostInternal(url, requestPreparer, postData);
 		}
-		
+
 		public static string ReadAsString(HttpWebResponse response)
 		{
 			try
@@ -47,7 +47,7 @@ namespace SignalR.Client._20
 			}
 			catch (Exception ex)
 			{
-				Debug.WriteLine(string.Format("Failed to read resonse: {0}", ex));
+				Debug.WriteLine(string.Format("Failed to read response: {0}", ex));
 				// Swallow exceptions when reading the response stream and just try again.
 				return null;
 			}
@@ -70,7 +70,7 @@ namespace SignalR.Client._20
 			request.ContentLength = buffer != null ? buffer.LongLength : 0;
 
 			var signal = new EventSignal<CallbackDetail<HttpWebResponse>>();
-			
+
 			if (buffer == null)
 			{
 				// If there's nothing to be written to the request then just get the response
@@ -86,7 +86,7 @@ namespace SignalR.Client._20
 			}
 			catch (Exception ex)
 			{
-				signal.OnFinish(new CallbackDetail<HttpWebResponse>{IsFaulted = true,Exception = ex});
+				signal.OnFinish(new CallbackDetail<HttpWebResponse> { IsFaulted = true, Exception = ex });
 			}
 			return signal;
 		}
@@ -104,7 +104,7 @@ namespace SignalR.Client._20
 				requestPreparer(request);
 			}
 			var signal = new EventSignal<CallbackDetail<HttpWebResponse>>();
-			GetResponseAsync(request,signal);
+			GetResponseAsync(request, signal);
 			return signal;
 		}
 
@@ -113,11 +113,11 @@ namespace SignalR.Client._20
 			try
 			{
 				request.BeginGetResponse(GetResponseCallback,
-				                         new RequestState {Request = request, PostData = new byte[] {}, Response = signal});
+										 new RequestState { Request = request, PostData = new byte[] { }, Response = signal });
 			}
 			catch (Exception ex)
 			{
-				signal.OnFinish(new CallbackDetail<HttpWebResponse>{Exception = ex,IsFaulted = true});
+				signal.OnFinish(new CallbackDetail<HttpWebResponse> { Exception = ex, IsFaulted = true });
 			}
 		}
 
@@ -136,10 +136,10 @@ namespace SignalR.Client._20
 			}
 			catch (WebException exception)
 			{
-				requestState.Response.OnFinish(new CallbackDetail<HttpWebResponse>{IsFaulted = true,Exception = exception});
+				requestState.Response.OnFinish(new CallbackDetail<HttpWebResponse> { IsFaulted = true, Exception = exception });
 				return;
 			}
-			
+
 			// Start the asynchronous operation to get the response
 			requestState.Request.BeginGetResponse(GetResponseCallback, requestState);
 		}
@@ -156,7 +156,7 @@ namespace SignalR.Client._20
 			}
 			catch (Exception ex)
 			{
-				requestState.Response.OnFinish(new CallbackDetail<HttpWebResponse>{IsFaulted = true,Exception = ex});
+				requestState.Response.OnFinish(new CallbackDetail<HttpWebResponse> { IsFaulted = true, Exception = ex });
 			}
 		}
 

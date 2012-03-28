@@ -4,38 +4,66 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
-using System.Threading;
 using dotnet2::Newtonsoft.Json;
 using dotnet2::Newtonsoft.Json.Linq;
+using SignalR.Client._20.Infrastructure;
 
 namespace SignalR.Client._20.Transports
 {
     public abstract class HttpBasedTransport : IClientTransport
-    {
-        // The receive query string
-        private const string _receiveQueryString = "?transport={0}&connectionId={1}&messageId={2}&connectionData={3}{4}";
+	{
+		// The receive query string
+		private const string _receiveQueryString = "?transport={0}&connectionId={1}&messageId={2}&groups={3}&connectionData={4}{5}";
 
-        // The send query string
-        private const string _sendQueryString = "?transport={0}&connectionId={1}{2}";
+		// The send query string
+		private const string _sendQueryString = "?transport={0}&connectionId={1}{2}";
 
         // The transport name
         protected readonly string _transport;
 
         protected const string HttpRequestKey = "http.Request";
 
-        public HttpBasedTransport(string transport)
-        {
-            _transport = transport;
-        }
+		protected readonly IHttpClient _httpClient;
 
-        public void Start(Connection connection, string data)
+		public HttpBasedTransport(IHttpClient httpClient, string transport)
+		{
+			_httpClient = httpClient;
+			_transport = transport;
+		}
+
+		public EventSignal<NegotiationResponse> Negotiate(IConnection connection)
+		{
+			return GetNegotiationResponse(_httpClient, connection);
+		}
+
+		internal static EventSignal<NegotiationResponse> GetNegotiationResponse(IHttpClient httpClient, IConnection connection)
+		{
+			string negotiateUrl = connection.Url + "negotiate";
+
+			var negotiateSignal = new EventSignal<NegotiationResponse>();
+			var signal = httpClient.PostAsync(negotiateUrl, connection.PrepareRequest, new Dictionary<string, string>());
+			signal.Finished += (sender,e) =>
+			{
+				string raw = e.Result.ReadAsString();
+
+				if (raw == null)
+				{
+					throw new InvalidOperationException("Server negotiation failed.");
+				}
+
+				negotiateSignal.OnFinish(JsonConvert.DeserializeObject<NegotiationResponse>(raw));
+			};
+			return negotiateSignal;
+		}
+
+        public void Start(IConnection connection, string data)
         {
 			OnStart(connection, data, () => {}, exception => { throw exception; });
         }
 
-		protected abstract void OnStart(Connection connection, string data, dotnet2::System.Action initializeCallback, Action<Exception> errorCallback);
+		protected abstract void OnStart(IConnection connection, string data, dotnet2::System.Action initializeCallback, Action<Exception> errorCallback);
 
-        public EventSignal<T> Send<T>(Connection connection, string data)
+        public EventSignal<T> Send<T>(IConnection connection, string data)
         {
             string url = connection.Url + "send";
             string customQueryString = GetCustomQueryString(connection);
@@ -44,59 +72,37 @@ namespace SignalR.Client._20.Transports
 
             var postData = new Dictionary<string, string> {
                 { "data", data },
-				{"groups", Uri.EscapeDataString(JsonConvert.SerializeObject(connection.Groups))}
             };
 
         	var returnSignal = new EventSignal<T>();
-        	internalSend(returnSignal, connection, url, postData, 1);
+			var postSignal = _httpClient.PostAsync(url, connection.PrepareRequest, postData);
+        	postSignal.Finished += (sender, e) =>
+        	                       	{
+        	                       		string raw = e.Result.ReadAsString();
+
+        	                       		if (String.IsNullOrEmpty(raw))
+        	                       		{
+        	                       			returnSignal.OnFinish(default(T));
+        	                       			return;
+        	                       		}
+
+        	                       		returnSignal.OnFinish(JsonConvert.DeserializeObject<T>(raw));
+        	                       	};
         	return returnSignal;
         }
 
-		private void internalSend<T>(EventSignal<T> eventSignal, Connection connection, string url, IDictionary<string ,string > postData, int attemptNumber)
-		{
-			var postSignal = HttpHelper.PostAsync(url, connection.PrepareRequest, postData);
-			postSignal.Finished += (sender, e) =>
-			{
-				if (e.Result.IsFaulted)
-				{
-					if (attemptNumber > 10)
-					{
-						throw e.Result.Exception;
-					}
-
-					Debug.WriteLine(string.Format("Retrying time {0}",attemptNumber));
-					Thread.Sleep(TimeSpan.FromSeconds(attemptNumber*2));
-					internalSend(eventSignal,connection,url,postData,attemptNumber++);
-
-					return;
-				}
-
-				T result;
-				string raw = HttpHelper.ReadAsString(e.Result.Result);
-
-				if (String.IsNullOrEmpty(raw))
-				{
-					result = default(T);
-				}
-				else
-				{
-					result = JsonConvert.DeserializeObject<T>(raw);
-				}
-				eventSignal.OnFinish(result);
-			};
-		}
-
-        protected string GetReceiveQueryString(Connection connection, string data)
+        protected string GetReceiveQueryString(IConnection connection, string data)
         {
             return String.Format(_receiveQueryString,
                                  _transport,
                                  Uri.EscapeDataString(connection.ConnectionId),
-                                 Convert.ToString(connection.MessageId),
+								 Convert.ToString(connection.MessageId),
+								 Uri.EscapeDataString(JsonConvert.SerializeObject(connection.Groups)),
                                  data,
                                  GetCustomQueryString(connection));
         }
 
-        protected virtual Action<HttpWebRequest> PrepareRequest(Connection connection)
+        protected virtual Action<IRequest> PrepareRequest(IConnection connection)
         {
             return request =>
             {
@@ -113,9 +119,9 @@ namespace SignalR.Client._20.Transports
             return (webException != null && webException.Status == WebExceptionStatus.RequestCanceled);
         }
 
-        public void Stop(Connection connection)
+        public void Stop(IConnection connection)
         {
-            var httpRequest = ConnectionExtensions.GetValue<HttpWebRequest>(connection,HttpRequestKey);
+            var httpRequest = ConnectionExtensions.GetValue<IRequest>(connection,HttpRequestKey);
             if (httpRequest != null)
             {
                 try
@@ -130,12 +136,12 @@ namespace SignalR.Client._20.Transports
             }
         }
 
-        protected virtual void OnBeforeAbort(Connection connection)
+        protected virtual void OnBeforeAbort(IConnection connection)
         {
 
         }
 
-		protected static void ProcessResponse(Connection connection, string response, out bool timedOut, out bool disconnected)
+		protected static void ProcessResponse(IConnection connection, string response, out bool timedOut, out bool disconnected)
 		{
 			timedOut = false;
 			disconnected = false;
@@ -209,7 +215,7 @@ namespace SignalR.Client._20.Transports
             }
         }
 
-        private static string GetCustomQueryString(Connection connection)
+        private static string GetCustomQueryString(IConnection connection)
         {
             return String.IsNullOrEmpty(connection.QueryString)
                             ? ""

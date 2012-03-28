@@ -2,23 +2,30 @@
 using System.IO;
 using SignalR.Client._20.Transports;
 
-namespace SignalR.Client._20
+namespace SignalR.Client._20.Infrastructure
 {
 	internal static class StreamExtensions
 	{
 		public static EventSignal<CallbackDetail<int>> ReadAsync(Stream stream, byte[] buffer)
 		{
 			var signal = new EventSignal<CallbackDetail<int>>(30);
-            try
-            {
-            	var state = new StreamState{Stream= stream,Response = signal};
-                stream.BeginRead(buffer, 0, buffer.Length, GetResponseCallback, state);
-            }
-			catch(Exception exception)
-			{
-				signal.OnFinish(new CallbackDetail<int>{IsFaulted = true,Exception = exception});
-			}
+			var state = new StreamState { Stream = stream, Response = signal, Buffer = buffer};
+			
+			ReadAsyncInternal(state);
+			
 			return signal;
+		}
+
+		internal static void ReadAsyncInternal(StreamState streamState)
+		{
+			try
+			{
+				streamState.Stream.BeginRead(streamState.Buffer, 0, streamState.Buffer.Length, GetResponseCallback, streamState);
+			}
+			catch (Exception exception)
+			{
+				streamState.Response.OnFinish(new CallbackDetail<int> { IsFaulted = true, Exception = exception });
+			}
 		}
 
 		private static void GetResponseCallback(IAsyncResult asynchronousResult)
@@ -33,7 +40,14 @@ namespace SignalR.Client._20
 			}
 			catch (Exception ex)
 			{
-				streamState.Response.OnFinish(new CallbackDetail<int>{IsFaulted = true,Exception = ex});
+				try
+				{
+					ReadAsyncInternal(streamState);
+				}
+				catch (Exception)
+				{
+					streamState.Response.OnFinish(new CallbackDetail<int> { IsFaulted = true, Exception = ex });
+				}
 			}
 		}
 	}
@@ -41,7 +55,7 @@ namespace SignalR.Client._20
 	internal class StreamState
 	{
 		public Stream Stream { get; set; }
-
+		public byte[] Buffer { get; set; }
 		public EventSignal<CallbackDetail<int>> Response { get; set; }
 	}
 }

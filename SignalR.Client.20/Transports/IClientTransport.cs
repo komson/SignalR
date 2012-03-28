@@ -4,8 +4,9 @@ namespace SignalR.Client._20.Transports
 {
 	public interface IClientTransport
 	{
-		void Start(Connection connection, string data);
-		EventSignal<T> Send<T>(Connection connection, string data);
-		void Stop(Connection connection);
+		void Start(IConnection connection, string data);
+		EventSignal<T> Send<T>(IConnection connection, string data);
+		void Stop(IConnection connection);
+		EventSignal<NegotiationResponse> Negotiate(IConnection connection);
 	}
 }

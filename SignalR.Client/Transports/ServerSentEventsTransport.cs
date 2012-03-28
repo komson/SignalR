@@ -238,7 +238,8 @@ namespace SignalR.Client.Transports
                     if (read == 0)
                     {
                         // Stop any reading we're doing
-                        StopReading();
+						StopReading();
+
                         return;
                     }
 

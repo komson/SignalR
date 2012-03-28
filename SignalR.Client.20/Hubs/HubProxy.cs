@@ -5,28 +5,34 @@ using System.Collections.Generic;
 using dotnet2::Newtonsoft.Json;
 using SignalR.Client._20.Transports;
 
-namespace SignalR.Client._20.Hubs {
-    public class HubProxy : IHubProxy {
-        private readonly string _hubName;
-        private readonly IConnection _connection;
-        private readonly Dictionary<string, object> _state = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+namespace SignalR.Client._20.Hubs
+{
+	public class HubProxy : IHubProxy
+	{
+		private readonly string _hubName;
+		private readonly IConnection _connection;
+		private readonly Dictionary<string, object> _state = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 		private readonly Dictionary<string, Subscription> _subscriptions = new Dictionary<string, Subscription>(StringComparer.OrdinalIgnoreCase);
 
-        public HubProxy(IConnection connection, string hubName) {
-            _connection = connection;
-            _hubName = hubName;
-        }
+		public HubProxy(IConnection connection, string hubName)
+		{
+			_connection = connection;
+			_hubName = hubName;
+		}
 
-        public object this[string name] {
-            get {
-                object value;
-                _state.TryGetValue(name, out value);
-                return value;
-            }
-            set {
-                _state[name] = value;
-            }
-        }
+		public object this[string name]
+		{
+			get
+			{
+				object value;
+				_state.TryGetValue(name, out value);
+				return value;
+			}
+			set
+			{
+				_state[name] = value;
+			}
+		}
 
 		public Subscription Subscribe(string eventName)
 		{
@@ -45,9 +51,10 @@ namespace SignalR.Client._20.Hubs {
 			return subscription;
 		}
 
-    	public EventSignal<object > Invoke(string method, params object[] args) {
-            return Invoke<object>(method, args);
-        }
+		public EventSignal<object> Invoke(string method, params object[] args)
+		{
+			return Invoke<object>(method, args);
+		}
 
 		public EventSignal<T> Invoke<T>(string method, params object[] args)
 		{
@@ -64,15 +71,18 @@ namespace SignalR.Client._20.Hubs {
 				State = _state
 			};
 
-            var value = JsonConvert.SerializeObject(hubData);
-        	var newSignal = new OptionalEventSignal<T>();
-        	var signal = _connection.Send<HubResult<T>>(value);
-				signal.Finished += (sender,e) =>{
-                if (e.Result != null) {
+			var value = JsonConvert.SerializeObject(hubData);
+			var newSignal = new OptionalEventSignal<T>();
+			var signal = _connection.Send<HubResult<T>>(value);
+			signal.Finished += (sender, e) =>
+			{
+				if (e.Result != null)
+				{
 
-                    if (e.Result.Error != null) {
-                        throw new InvalidOperationException(e.Result.Error);
-                    }
+					if (e.Result.Error != null)
+					{
+						throw new InvalidOperationException(e.Result.Error);
+					}
 
 					HubResult<T> hubResult = e.Result;
 					if (hubResult.State != null)
@@ -83,15 +93,15 @@ namespace SignalR.Client._20.Hubs {
 						}
 					}
 
-                	newSignal.OnFinish(hubResult.Result);
-                }
+					newSignal.OnFinish(hubResult.Result);
+				}
 				else
-                {
-                	newSignal.OnFinish(default(T));
-                }
-            };
-        	return newSignal;
-        }
+				{
+					newSignal.OnFinish(default(T));
+				}
+			};
+			return newSignal;
+		}
 
 		public void InvokeEvent(string eventName, object[] args)
 		{
@@ -106,9 +116,5 @@ namespace SignalR.Client._20.Hubs {
 		{
 			return _subscriptions.Keys;
 		}
-
-        public void RemoveEvent(string eventName) {
-            _subscriptions.Remove(eventName);
-        }
-    }
+	}
 }

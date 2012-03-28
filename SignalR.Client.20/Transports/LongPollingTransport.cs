@@ -2,12 +2,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Net;
 using System.Threading;
-using dotnet2::Newtonsoft.Json;
-using dotnet2::Newtonsoft.Json.Linq;
+using SignalR.Client._20.Infrastructure;
 
 namespace SignalR.Client._20.Transports
 {
@@ -16,17 +13,22 @@ namespace SignalR.Client._20.Transports
 		public TimeSpan ReconnectDelay { get; set; }
 
 		public LongPollingTransport()
-			: base("longPolling")
+			: this(new DefaultHttpClient())
+		{
+		}
+
+		public LongPollingTransport(IHttpClient httpClient)
+			: base(httpClient, "longPolling")
 		{
 			ReconnectDelay = TimeSpan.FromSeconds(5);
 		}
 
-		protected override void OnStart(Connection connection, string data, dotnet2::System.Action initializeCallback, Action<Exception> errorCallback)
+		protected override void OnStart(IConnection connection, string data, dotnet2::System.Action initializeCallback, Action<Exception> errorCallback)
 		{
 			PollingLoop(connection, data, initializeCallback, errorCallback);
 		}
 
-		private void PollingLoop(Connection connection, string data, dotnet2::System.Action initializeCallback, Action<Exception> errorCallback, bool raiseReconnect = false)
+		private void PollingLoop(IConnection connection, string data, dotnet2::System.Action initializeCallback, Action<Exception> errorCallback, bool raiseReconnect = false)
 		{
 			string url = connection.Url;
 			var reconnectTokenSource = new CancellationTokenSource();
@@ -37,13 +39,9 @@ namespace SignalR.Client._20.Transports
 				url += "connect";
 			}
 
-			var postData = new Dictionary<string, string> {
-				{"groups", Uri.EscapeDataString(JsonConvert.SerializeObject(connection.Groups))}
-            };
-
 			url += GetReceiveQueryString(connection, data);
 
-			var signal = HttpHelper.PostAsync(url, PrepareRequest(connection), postData);
+			var signal = _httpClient.PostAsync(url, PrepareRequest(connection), new Dictionary<string, string>());
 			signal.Finished += (sender, e) =>
 			                   	{
 			                   		// Clear the pending request
@@ -64,7 +62,7 @@ namespace SignalR.Client._20.Transports
 			                   				}
 
 			                   				// Get the response
-			                   				var raw = HttpHelper.ReadAsString(e.Result.Result);
+			                   				var raw = e.Result.ReadAsString();
 
 			                   				if (!String.IsNullOrEmpty(raw))
 			                   				{
@@ -139,8 +137,6 @@ namespace SignalR.Client._20.Transports
 
 			if (initializeCallback != null)
 			{
-				// Only set this the first time
-				// TODO: We should delay this until after the http request has been made
 				initializeCallback();
 			}
 
@@ -153,7 +149,7 @@ namespace SignalR.Client._20.Transports
 			}
 		}
 
-		private static void FireReconnected(Connection connection, CancellationTokenSource reconnectTokenSource, ref int reconnectedFired)
+		private static void FireReconnected(IConnection connection, CancellationTokenSource reconnectTokenSource, ref int reconnectedFired)
 		{
 			if (!reconnectTokenSource.IsCancellationRequested)
 			{
