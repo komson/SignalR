@@ -1,8 +1,9 @@
 ﻿using System;
 using System.IO;
 using System.Net;
+using SignalR.Client._20.Infrastructure;
 
-namespace SignalR.Client._20.Infrastructure
+namespace SignalR.Client._20.Http
 {
     public class HttpWebResponseWrapper : IResponse
     {
@@ -25,7 +26,7 @@ namespace SignalR.Client._20.Infrastructure
 
         public void Close()
         {
-            _response.Close();
+            ((IDisposable)_response).Dispose();
         }
 
     	public bool IsFaulted { get; set; }

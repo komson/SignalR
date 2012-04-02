@@ -1,8 +1,10 @@
 ﻿extern alias dotnet2;
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using SignalR.Client._20.Http;
 using SignalR.Client._20.Infrastructure;
 
 namespace SignalR.Client._20.Transports
@@ -317,6 +319,8 @@ namespace SignalR.Client._20.Transports
                     {
                         return;
                     }
+
+					Debug.WriteLine("SSE READ: " + sseEvent);
 
                     switch (sseEvent.Type)
                     {

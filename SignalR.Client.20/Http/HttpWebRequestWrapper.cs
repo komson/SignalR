@@ -1,6 +1,7 @@
 ﻿using System.Net;
+using SignalR.Client._20.Infrastructure;
 
-namespace SignalR.Client._20.Infrastructure
+namespace SignalR.Client._20.Http
 {
     public class HttpWebRequestWrapper : IRequest
     {

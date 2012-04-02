@@ -398,11 +398,6 @@ namespace SignalR.Client.Transports
 
                 public EventType Type { get; private set; }
                 public string Data { get; private set; }
-
-                public override string ToString()
-                {
-                    return Type + ": " + Data;
-                }
             }
 
             private enum EventType

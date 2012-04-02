@@ -5,10 +5,11 @@ using System.IO;
 using System.Net;
 using System.Text;
 using SignalR.Client._20.Transports;
+using SignalR.Infrastructure;
 
-namespace SignalR.Client._20.Infrastructure
+namespace SignalR.Client._20.Http
 {
-	class HttpHelper
+	internal static class HttpHelper
 	{
 		public static EventSignal<CallbackDetail<HttpWebResponse>> PostAsync(string url)
 		{
@@ -180,7 +181,7 @@ namespace SignalR.Client._20.Infrastructure
 					continue;
 				}
 
-				sb.AppendFormat("{0}={1}", pair.Key, Uri.EscapeDataString(pair.Value));
+				sb.AppendFormat("{0}={1}", pair.Key, UriQueryUtility.UrlEncode(pair.Value));
 			}
 
 			return Encoding.UTF8.GetBytes(sb.ToString());

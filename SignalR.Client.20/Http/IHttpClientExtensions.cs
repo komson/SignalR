@@ -1,7 +1,8 @@
 ﻿using System;
+using SignalR.Client._20.Infrastructure;
 using SignalR.Client._20.Transports;
 
-namespace SignalR.Client._20.Infrastructure
+namespace SignalR.Client._20.Http
 {
     public static class IHttpClientExtensions
     {

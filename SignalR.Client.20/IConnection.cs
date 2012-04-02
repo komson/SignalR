@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using SignalR.Client._20.Http;
 using SignalR.Client._20.Infrastructure;
 using SignalR.Client._20.Transports;
 

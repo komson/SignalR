@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using SignalR.Client._20.Http;
 using SignalR.Client._20.Transports;
 
 namespace SignalR.Client._20.Infrastructure

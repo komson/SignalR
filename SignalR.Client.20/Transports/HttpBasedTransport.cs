@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Net;
 using dotnet2::Newtonsoft.Json;
 using dotnet2::Newtonsoft.Json.Linq;
-using SignalR.Client._20.Infrastructure;
+using SignalR.Client._20.Http;
 
 namespace SignalR.Client._20.Transports
 {

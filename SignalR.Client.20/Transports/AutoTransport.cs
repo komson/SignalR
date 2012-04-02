@@ -1,5 +1,5 @@
 ﻿using System;
-using SignalR.Client._20.Infrastructure;
+using SignalR.Client._20.Http;
 
 namespace SignalR.Client._20.Transports
 {
