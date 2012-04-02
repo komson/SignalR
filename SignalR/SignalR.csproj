@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -10,7 +10,6 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>SignalR</RootNamespace>
     <AssemblyName>SignalR</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
     <RestorePackages>true</RestorePackages>
@@ -39,13 +38,12 @@
     <AssemblyOriginatorKeyFile>..\SignalR.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Newtonsoft.Json, Version=4.0.7.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Newtonsoft.Json.4.0.7\lib\net40\Newtonsoft.Json.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>..\packages\Newtonsoft.Json.4.5.1\lib\net40\Newtonsoft.Json.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\CommonAssemblyInfo.cs">
@@ -62,7 +60,19 @@
     <Compile Include="Hosting\IResponse.cs" />
     <Compile Include="CommandType.cs" />
     <Compile Include="ConnectionExtensions.cs" />
+    <Compile Include="Hubs\Extensions\HubManagerExtensions.cs" />
+    <Compile Include="Hubs\Lookup\DefaultParameterResolver.cs" />
+    <Compile Include="Hubs\Lookup\IParameterResolver.cs" />
+    <Compile Include="Hubs\DefaultAssemblyLocator.cs" />
+    <Compile Include="Hubs\Extensions\MethodExtensions.cs" />
+    <Compile Include="Hubs\Lookup\Descriptors\ParameterDescriptor.cs" />
+    <Compile Include="Hubs\IAssemblyLocator.cs" />
+    <Compile Include="Hubs\Lookup\ReflectedMethodDescriptorProvider.cs" />
+    <Compile Include="Hubs\Lookup\Descriptors\HubDescriptor.cs" />
+    <Compile Include="Hubs\Lookup\IMethodDescriptorProvider.cs" />
+    <Compile Include="Hubs\Lookup\DefaultHubManager.cs" />
     <Compile Include="Hubs\IConnected.cs" />
+    <Compile Include="Hubs\Lookup\IHubManager.cs" />
     <Compile Include="IConnectionManager.cs" />
     <Compile Include="Infrastructure\DefaultDependencyResolver.cs" />
     <Compile Include="MessageBus\IIdGenerator.cs" />
@@ -71,14 +81,12 @@
     <Compile Include="MessageBus\WrappedValue.cs" />
     <Compile Include="PersistentConnectionFactory.cs" />
     <Compile Include="GuidConnectionIdFactory.cs" />
-    <Compile Include="Hubs\ActionInfo.cs" />
-    <Compile Include="Hubs\DefaultHubTypeResolver.cs" />
+    <Compile Include="Hubs\Lookup\Descriptors\MethodDescriptor.cs" />
     <Compile Include="Hubs\HubMethodNameAttribute.cs" />
     <Compile Include="Hubs\DefaultHubActivator.cs" />
     <Compile Include="Hubs\HubNameAttribute.cs" />
     <Compile Include="Hubs\IDisconnect.cs" />
     <Compile Include="Hubs\IHub.cs" />
-    <Compile Include="Hubs\IHubTypeResolver.cs" />
     <Compile Include="IConnectionIdFactory.cs" />
     <Compile Include="IJsonSerializer.cs" />
     <Compile Include="MessageBus\IMessageBus.cs" />
@@ -93,16 +101,13 @@
     <Compile Include="IGroupManager.cs" />
     <Compile Include="Hubs\IHubActivator.cs" />
     <Compile Include="Hubs\DefaultJavaScriptProxyGenerator.cs" />
-    <Compile Include="Hubs\DefaultActionResolver.cs" />
-    <Compile Include="Hubs\DefaultHubFactory.cs" />
-    <Compile Include="Hubs\DefaultHubLocator.cs" />
+    <Compile Include="Hubs\Lookup\ReflectedHubDescriptorProvider.cs" />
     <Compile Include="Hubs\Hub.cs" />
     <Compile Include="Hubs\ClientAgent.cs" />
     <Compile Include="Hubs\HubContext.cs" />
     <Compile Include="Hubs\HubDispatcher.cs" />
     <Compile Include="Hubs\IClientAgent.cs" />
-    <Compile Include="Hubs\IHubFactory.cs" />
-    <Compile Include="Hubs\IHubLocator.cs" />
+    <Compile Include="Hubs\Lookup\IHubDescriptorProvider.cs" />
     <Compile Include="Hubs\SignalAgent.cs" />
     <Compile Include="Infrastructure\NullJavaScriptMinifier.cs" />
     <Compile Include="Infrastructure\IDependencyResolver.cs" />
@@ -128,12 +133,12 @@
     <Compile Include="TaskAsyncHelper.cs" />
     <Compile Include="Hubs\TrackingDictionary.cs" />
     <Compile Include="Connection.cs" />
-    <Compile Include="Hubs\IActionResolver.cs" />
     <Compile Include="IConnection.cs" />
     <Compile Include="Hubs\IJavaScriptProxyGenerator.cs" />
     <Compile Include="MessageBus\Message.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Transports\TransportManager.cs" />
+    <Compile Include="Infrastructure\ExceptionsExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\SignalR.snk">
@@ -155,7 +160,7 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" />
   <Target Name="AfterBuild">
-    <Exec Command="&quot;$(SolutionDir)tools\AjaxMin\AjaxMin.exe&quot; &quot;$(ProjectDir)Scripts\jquery.signalR.js&quot; -out &quot;$(ProjectDir)Scripts\jquery.signalR.min.js&quot; -clobber" LogStandardErrorAsError="true" />
+    <Exec Command="&quot;$(SolutionDir)tools\AjaxMin\AjaxMin.exe&quot; &quot;$(ProjectDir)Scripts\jquery.signalR.js&quot; -out &quot;$(ProjectDir)Scripts\jquery.signalR.min.js&quot; -clobber" LogStandardErrorAsError="true" Condition=" '$(OS)' == 'Windows_NT' " />
   </Target>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

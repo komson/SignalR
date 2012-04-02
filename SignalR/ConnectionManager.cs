@@ -2,7 +2,6 @@
 using System.Linq;
 using SignalR.Hubs;
 using SignalR.Infrastructure;
-using SignalR.MessageBus;
 
 namespace SignalR
 {
@@ -33,7 +32,10 @@ namespace SignalR
         public dynamic GetClients(string hubName)
         {
             var connection = GetConnection<HubDispatcher>();
-            return new ClientAgent(connection, hubName);
+            var hubManager = _resolver.Resolve<IHubManager>();
+            HubDescriptor hubDescriptor = hubManager.EnsureHub(hubName);
+
+            return new ClientAgent(connection, hubDescriptor.Name);
         }
 
         private IConnection GetConnection(string connectionType)

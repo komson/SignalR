@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SignalR.Infrastructure;
-using SignalR.MessageBus;
 
 namespace SignalR
 {
@@ -92,6 +92,8 @@ namespace SignalR
 
             _trace.Source.TraceInformation("Connection: Connection {0} received {1} messages, last id {2}", _connectionId, result.Messages.Count, result.LastMessageId);
 
+            Debug.WriteLine("Connection: Connection {0} received {1} messages, last id {2}. Payload {3}", _connectionId, result.Messages.Count, result.LastMessageId, _serializer.Stringify(result.Messages));
+
             return response;
         }
 
@@ -131,7 +133,8 @@ namespace SignalR
 
         private Task SendMessage(string key, object value)
         {
-            return _messageBus.Send(_connectionId, key, new WrappedValue(value, _serializer)).Catch();
+            var wrappedValue = new WrappedValue(value, _serializer);
+            return _messageBus.Send(_connectionId, key, wrappedValue).Catch();
         }
 
         private void PopulateResponseState(PersistentResponse response)

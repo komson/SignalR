@@ -4,7 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using IClientResponse = SignalR.Client.Infrastructure.IResponse;
+using IClientResponse = SignalR.Client.Http.IResponse;
 
 namespace SignalR.Hosting.Memory
 {
@@ -216,9 +216,9 @@ namespace SignalR.Hosting.Memory
                                 read = Read(buffer, offset, count);
                                 ar.SetAsCompleted(read, false);
                             }
-                        }
 
-                        _onWrite -= writeHandler;
+                            _onWrite -= writeHandler;
+                        }
                     };
 
                     _onWrite += writeHandler;

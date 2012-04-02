@@ -1,7 +1,8 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Threading;
+using SignalR.Client.Http;
 using SignalR.Client.Infrastructure;
 
 namespace SignalR.Client.Transports
@@ -42,10 +43,11 @@ namespace SignalR.Client.Transports
             }
 
             // Wait for a bit before reconnecting
-            Thread.Sleep(ReconnectDelay);
-
-            // Now attempt a reconnect
-            OpenConnection(connection, data, initializeCallback: null, errorCallback: null);
+            TaskAsyncHelper.Delay(ReconnectDelay).Then(() =>
+            {
+                // Now attempt a reconnect
+                OpenConnection(connection, data, initializeCallback: null, errorCallback: null);
+            });
         }
 
         private void OpenConnection(IConnection connection, string data, Action initializeCallback, Action<Exception> errorCallback)
@@ -319,6 +321,8 @@ namespace SignalR.Client.Transports
                         return;
                     }
 
+                    Debug.WriteLine("SSE READ: " + sseEvent);
+
                     switch (sseEvent.Type)
                     {
                         case EventType.Id:
@@ -394,6 +398,11 @@ namespace SignalR.Client.Transports
 
                 public EventType Type { get; private set; }
                 public string Data { get; private set; }
+
+                public override string ToString()
+                {
+                    return Type + ": " + Data;
+                }
             }
 
             private enum EventType

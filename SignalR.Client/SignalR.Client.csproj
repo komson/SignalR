@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -10,7 +10,6 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>SignalR.Client</RootNamespace>
     <AssemblyName>SignalR.Client</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <RestorePackages>true</RestorePackages>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\SignalR\</SolutionDir>
@@ -39,17 +38,19 @@
     <AssemblyOriginatorKeyFile>..\SignalR.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Newtonsoft.Json, Version=4.0.7.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Newtonsoft.Json.4.0.7\lib\net40\Newtonsoft.Json.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>..\packages\Newtonsoft.Json.4.5.1\lib\net40\Newtonsoft.Json.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\CommonAssemblyInfo.cs">
       <Link>Properties\CommonAssemblyInfo.cs</Link>
+    </Compile>
+    <Compile Include="..\SignalR.Hosting.Common\Infrastructure\UriQueryUtility.cs">
+      <Link>Infrastructure\UriQueryUtility.cs</Link>
     </Compile>
     <Compile Include="..\SignalR\TaskAsyncHelper.cs">
       <Link>Infrastructure\TaskAsyncHelper.cs</Link>
@@ -67,15 +68,15 @@
     <Compile Include="Hubs\Subscription.cs" />
     <Compile Include="IConnection.cs" />
     <Compile Include="Infrastructure\ChunkBuffer.cs" />
-    <Compile Include="Infrastructure\DefaultHttpClient.cs" />
+    <Compile Include="Http\DefaultHttpClient.cs" />
     <Compile Include="Infrastructure\DisposableAction.cs" />
-    <Compile Include="Infrastructure\HttpHelper.cs" />
-    <Compile Include="Infrastructure\HttpWebRequestWrapper.cs" />
-    <Compile Include="Infrastructure\HttpWebResponseWrapper.cs" />
-    <Compile Include="Infrastructure\IHttpClient.cs" />
-    <Compile Include="Infrastructure\IHttpClientExtensions.cs" />
-    <Compile Include="Infrastructure\IRequest.cs" />
-    <Compile Include="Infrastructure\IResponse.cs" />
+    <Compile Include="Http\HttpHelper.cs" />
+    <Compile Include="Http\HttpWebRequestWrapper.cs" />
+    <Compile Include="Http\HttpWebResponseWrapper.cs" />
+    <Compile Include="Http\IHttpClient.cs" />
+    <Compile Include="Http\IHttpClientExtensions.cs" />
+    <Compile Include="Http\IRequest.cs" />
+    <Compile Include="Http\IResponse.cs" />
     <Compile Include="Infrastructure\StreamExtensions.cs" />
     <Compile Include="NegotiationResponse.cs" />
     <Compile Include="ObservableConnection.cs" />

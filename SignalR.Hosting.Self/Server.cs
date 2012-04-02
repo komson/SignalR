@@ -1,8 +1,9 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using SignalR.Hosting.Common;
@@ -10,14 +11,11 @@ using SignalR.Hosting.Self.Infrastructure;
 
 namespace SignalR.Hosting.Self
 {
-    public class Server : RoutingHost
+    public unsafe class Server : RoutingHost
     {
         private readonly string _url;
         private readonly HttpListener _listener;
-
-        private Timer _heartBeat;
-        private ConcurrentDictionary<HttpListenerResponseWrapper, bool> _aliveConnections = new ConcurrentDictionary<HttpListenerResponseWrapper, bool>();
-        private int _checkingConnections;
+        private CriticalHandle _requestQueueHandle;
 
         public Action<HostContext> OnProcessRequest { get; set; }
 
@@ -30,7 +28,7 @@ namespace SignalR.Hosting.Self
         public Server(string url, IDependencyResolver resolver)
             : base(resolver)
         {
-            _url = url;
+            _url = url.Replace("*", @".*?");
             _listener = new HttpListener();
             _listener.Prefixes.Add(url);
         }
@@ -39,18 +37,19 @@ namespace SignalR.Hosting.Self
         {
             _listener.Start();
 
+            // HACK: Get the request queue handle so we can register for disconnect
+            var requestQueueHandleField = typeof(HttpListener).GetField("m_RequestQueueHandle", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (requestQueueHandleField != null)
+            {
+                _requestQueueHandle = (CriticalHandle)requestQueueHandleField.GetValue(_listener);
+            }
+
             ReceiveLoop();
         }
 
         public void Stop()
         {
             _listener.Stop();
-
-            if (_heartBeat != null)
-            {
-                _heartBeat.Dispose();
-                _heartBeat = null;
-            }
         }
 
         private void ReceiveLoop()
@@ -61,26 +60,49 @@ namespace SignalR.Hosting.Self
                 try
                 {
                     context = _listener.EndGetContext(ar);
-
-                    // Start the timer the checks for connection activity
-                    if (_heartBeat == null)
-                    {
-                        var interval = TimeSpan.FromTicks(Configuration.HeartBeatInterval.Ticks / 2);
-                        _heartBeat = new Timer(_ => CheckConnections(),
-                                               null,
-                                               interval,
-                                               interval);
-                    }
                 }
                 catch (Exception)
                 {
                     return;
                 }
 
+                var cts = new CancellationTokenSource();
+
+                // Get the connection id value
+                var connectionIdField = typeof(HttpListenerRequest).GetField("m_ConnectionId", BindingFlags.Instance | BindingFlags.NonPublic);
+                if (_requestQueueHandle != null && connectionIdField != null)
+                {
+                    ulong connectionId = (ulong)connectionIdField.GetValue(context.Request);
+                    // Create a nativeOverlapped callback so we can register for disconnect callback
+                    var overlapped = new Overlapped();
+                    var nativeOverlapped = overlapped.UnsafePack((errorCode, numBytes, pOVERLAP) =>
+                    {
+                        // Free the overlapped
+                        Overlapped.Free(pOVERLAP);
+
+                        // Mark the client as disconnected
+                        cts.Cancel();
+                    },
+                    null);
+
+                    uint hr = NativeMethods.HttpWaitForDisconnect(_requestQueueHandle, connectionId, nativeOverlapped);
+
+                    if (hr != NativeMethods.HttpErrors.ERROR_IO_PENDING &&
+                        hr != NativeMethods.HttpErrors.NO_ERROR)
+                    {
+                        // We got an unknown result so throw
+                        throw new InvalidOperationException("Unable to register disconnect callback");
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine("Unable to resolve requestQueue handle. Disconnect notifications will be ignored");
+                }
+
                 ReceiveLoop();
 
                 // Process the request async
-                ProcessRequestAsync(context).ContinueWith(task =>
+                ProcessRequestAsync(context, cts.Token).ContinueWith(task =>
                 {
                     if (task.IsFaulted)
                     {
@@ -96,7 +118,7 @@ namespace SignalR.Hosting.Self
             }, null);
         }
 
-        private Task ProcessRequestAsync(HttpListenerContext context)
+        private Task ProcessRequestAsync(HttpListenerContext context, CancellationToken token)
         {
             try
             {
@@ -109,7 +131,7 @@ namespace SignalR.Hosting.Self
                 if (TryGetConnection(path, out connection))
                 {
                     var request = new HttpListenerRequestWrapper(context.Request);
-                    var response = new HttpListenerResponseWrapper(context.Response);
+                    var response = new HttpListenerResponseWrapper(context.Response, token);
                     var hostContext = new HostContext(request, response, context.User);
 
                     if (OnProcessRequest != null)
@@ -117,8 +139,6 @@ namespace SignalR.Hosting.Self
                         OnProcessRequest(hostContext);
                     }
 
-                    // Add this response to the list of live connections
-                    _aliveConnections.TryAdd(response, true);
 #if DEBUG
                     hostContext.Items[HostConstants.DebugMode] = true;
 #endif
@@ -138,54 +158,23 @@ namespace SignalR.Hosting.Self
             }
         }
 
-        public string ResolvePath(Uri url)
+        private string ResolvePath(Uri url)
         {
             string baseUrl = url.GetComponents(UriComponents.Scheme | UriComponents.HostAndPort | UriComponents.Path, UriFormat.SafeUnescaped);
 
-            if (!baseUrl.StartsWith(_url, StringComparison.OrdinalIgnoreCase))
+            Match match = Regex.Match(baseUrl, "^" + _url);
+            if (!match.Success)
             {
                 throw new InvalidOperationException("Unable to resolve path");
             }
 
-            string path = baseUrl.Substring(_url.Length);
+            string path = baseUrl.Substring(match.Value.Length);
             if (!path.StartsWith("/"))
             {
                 return "/" + path;
             }
 
             return path;
-        }
-
-        /// <summary>
-        /// Checks to see if any of the active connections are still alive by writing a byte to the output
-        /// stream and checking for an exception.
-        /// </summary>
-        private void CheckConnections()
-        {
-            if (Interlocked.Exchange(ref _checkingConnections, 1) == 1)
-            {
-                return;
-            }
-
-            if (_aliveConnections.Count > 0)
-            {
-                var dead = new List<HttpListenerResponseWrapper>();
-                foreach (var c in _aliveConnections.Keys)
-                {
-                    if (!c.Ping())
-                    {
-                        dead.Add(c);
-                    }
-                }
-
-                foreach (var c in dead)
-                {
-                    bool ignore;
-                    _aliveConnections.TryRemove(c, out ignore);
-                }
-            }
-
-            _checkingConnections = 0;
         }
     }
 }
