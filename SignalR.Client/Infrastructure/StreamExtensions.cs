@@ -29,7 +29,8 @@ namespace SignalR.Client.Infrastructure
 #else
             try
             {
-                return Task.Factory.FromAsync((cb, state) => stream.BeginWrite(buffer, 0, buffer.Length, cb, state), ar => stream.EndWrite(ar), null);
+            	return Task.Factory.FromAsync((cb, state) => stream.BeginWrite(buffer, 0, buffer.Length, cb, state),
+            	                              ar => EndWrite(stream, ar, buffer), null);
             }
             catch (Exception ex)
             {
@@ -37,6 +38,18 @@ namespace SignalR.Client.Infrastructure
             }
 #endif
         }
+
+    	private static void EndWrite(Stream stream, IAsyncResult ar, byte[] buffer)
+    	{
+			try
+			{
+				stream.EndWrite(ar);
+			}
+			catch (Exception)
+			{
+				stream.WriteAsync(buffer).Wait();
+			}
+    	}
 
     	private static int EndRead(Stream stream, IAsyncResult ar, byte[] buffer)
     	{
