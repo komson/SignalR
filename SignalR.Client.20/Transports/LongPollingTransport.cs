@@ -117,18 +117,28 @@ namespace SignalR.Client._20.Transports
 			                   							// If the connection is still active after raising the error event wait for 2 seconds
 			                   							// before polling again so we aren't hammering the server
 		                   								Thread.Sleep(2000);
-			                   							PollingLoop(connection,data,null,null,shouldRaiseReconnect);
+														if (connection.IsActive)
+														{
+															PollingLoop(connection,
+																		data,
+																		initializeCallback: null,
+																		errorCallback: null,
+																		raiseReconnect: shouldRaiseReconnect);
+														}
 			                   						}
 			                   					}
 											}
 											else
 											{
 												// Continue polling if there was no error
-												PollingLoop(connection,
-															data,
-															initializeCallback: null,
-															errorCallback: null,
-															raiseReconnect: shouldRaiseReconnect);
+												if (connection.IsActive)
+												{
+													PollingLoop(connection,
+													            data,
+													            initializeCallback: null,
+													            errorCallback: null,
+													            raiseReconnect: shouldRaiseReconnect);
+												}
 											}
 			                   			}
 			                   		}
