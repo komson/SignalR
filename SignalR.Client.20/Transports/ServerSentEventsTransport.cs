@@ -1,6 +1,7 @@
 ﻿extern alias dotnet2;
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -56,17 +57,35 @@ namespace SignalR.Client._20.Transports
             // If we're reconnecting add /connect to the url
             bool reconnecting = initializeCallback == null;
 
-            var url = (reconnecting ? connection.Url : connection.Url + "connect") + GetReceiveQueryString(connection, data);
+			var url = (reconnecting ? connection.Url : connection.Url + "connect");
 
-            Action<IRequest> prepareRequest = PrepareRequest(connection);
+			Action<IRequest> prepareRequest = PrepareRequest(connection);
 
-            var signal = _httpClient.GetAsync(url, request =>
-            {
-                prepareRequest(request);
+			EventSignal<IResponse> signal;
+			
+			if (new List<string>(connection.Groups).Count>20)
+			{
+				url += GetReceiveQueryString(connection, data);
 
-                request.Accept = "text/event-stream";
+				signal = _httpClient.PostAsync(url, request =>
+				                                    	{
+				                                    		prepareRequest(request);
+				                                    		request.Accept = "text/event-stream";
+				                                    	}, new Dictionary<string, string> {{"groups", GetSerializedGroups(connection)}});
+			}
+			else
+			{
+				url += GetReceiveQueryStringWithGroups(connection, data);
 
-            });
+				signal = _httpClient.GetAsync(url, request =>
+				{
+					prepareRequest(request);
+
+					request.Accept = "text/event-stream";
+
+				});
+			}
+
 			signal.Finished += (sender,e)=> {
                 if (e.Result.IsFaulted)
                 {

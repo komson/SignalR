@@ -43,7 +43,7 @@ namespace SignalR.Client._20.Transports
 
 			url += GetReceiveQueryString(connection, data);
 
-			var signal = _httpClient.PostAsync(url, PrepareRequest(connection), new Dictionary<string, string>());
+			var signal = _httpClient.PostAsync(url, PrepareRequest(connection), new Dictionary<string, string>{{"groups",GetSerializedGroups(connection)}});
 			signal.Finished += (sender, e) =>
 			                   	{
 			                   		// Clear the pending request
@@ -116,7 +116,7 @@ namespace SignalR.Client._20.Transports
 
 			                   							// If the connection is still active after raising the error event wait for 2 seconds
 			                   							// before polling again so we aren't hammering the server
-		                   								Thread.Sleep(2000);
+		                   								Thread.Sleep(_errorDelay);
 														if (connection.IsActive)
 														{
 															PollingLoop(connection,

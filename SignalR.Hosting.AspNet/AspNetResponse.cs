@@ -24,7 +24,7 @@ namespace SignalR.Hosting.AspNet
         {
             get
             {
-                return _context.Response.IsClientConnected;
+            	return _context.Response != null && _context.Response.IsClientConnected;
             }
         }
 

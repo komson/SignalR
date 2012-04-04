@@ -53,7 +53,7 @@ namespace SignalR.Transports
                     return Enumerable.Empty<string>();
                 }
 
-                string groupValue = Context.Request.QueryString["groups"];
+				string groupValue = Context.Request.QueryStringOrForm("groups");
 
                 if (String.IsNullOrEmpty(groupValue))
                 {
