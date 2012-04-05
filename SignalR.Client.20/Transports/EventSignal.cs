@@ -30,7 +30,7 @@ namespace SignalR.Client._20.Transports
 					return;
 				}
 				_attemptCount++;
-				Thread.Sleep(TimeSpan.FromSeconds(1));
+				Thread.SpinWait(1000);
 				OnFinish(result);
 				return;
 			}
