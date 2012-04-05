@@ -40,6 +40,10 @@ namespace SignalR.Client._20.Transports
 			{
 				url += "connect";
 			}
+			else if (raiseReconnect)
+			{
+				url += "reconnect";
+			}
 
 			url += GetReceiveQueryString(connection, data);
 
