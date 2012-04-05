@@ -7,14 +7,11 @@ namespace SignalR.Client._20.Infrastructure
 {
 	internal static class StreamExtensions
 	{
-		public static EventSignal<CallbackDetail<int>> ReadAsync(Stream stream, byte[] buffer)
+		public static void ReadAsync(EventSignal<CallbackDetail<int>> signal, Stream stream, byte[] buffer)
 		{
-			var signal = new EventSignal<CallbackDetail<int>>(30);
 			var state = new StreamState { Stream = stream, Response = signal, Buffer = buffer};
 			
 			ReadAsyncInternal(state);
-			
-			return signal;
 		}
 
 		internal static void ReadAsyncInternal(StreamState streamState)

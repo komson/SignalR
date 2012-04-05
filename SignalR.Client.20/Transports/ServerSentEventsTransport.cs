@@ -228,50 +228,52 @@ namespace SignalR.Client._20.Transports
                 }
 
                 var buffer = new byte[1024];
-                var signal = StreamExtensions.ReadAsync(_stream,buffer);
-            	signal.Finished += (sender, e) =>
-            	                   	{
-            	                   		if (e.Result.IsFaulted)
-            	                   		{
-            	                   			Exception exception = e.Result.Exception.GetBaseException();
 
-											if (!IsRequestAborted(exception))
-											{
-												if (!(exception is IOException))
-												{
-													_connection.OnError(exception);
-												}
+				var signal = new EventSignal<CallbackDetail<int>>();
+				signal.Finished += (sender, e) =>
+				{
+					if (e.Result.IsFaulted)
+					{
+						Exception exception = e.Result.Exception.GetBaseException();
 
-												StopReading();
-											}
-											return;
-            	                   		}
+						if (!IsRequestAborted(exception))
+						{
+							if (!(exception is IOException))
+							{
+								_connection.OnError(exception);
+							}
 
-            	                   		int read = e.Result.Result;
+							StopReading();
+						}
+						return;
+					}
 
-            	                   		if (read > 0)
-            	                   		{
-            	                   			// Put chunks in the buffer
-            	                   			_buffer.Add(buffer, read);
-            	                   		}
+					int read = e.Result.Result;
 
-            	                   		if (read == 0)
-            	                   		{
-            	                   			// Stop any reading we're doing
-            	                   			StopReading();
+					if (read > 0)
+					{
+						// Put chunks in the buffer
+						_buffer.Add(buffer, read);
+					}
 
-            	                   			return;
-            	                   		}
+					if (read == 0)
+					{
+						// Stop any reading we're doing
+						StopReading();
 
-            	                   		// Keep reading the next set of data
-            	                   		ReadLoop();
+						return;
+					}
 
-            	                   		if (read <= buffer.Length)
-            	                   		{
-            	                   			// If we read less than we wanted or if we filled the buffer, process it
-            	                   			ProcessBuffer();
-            	                   		}
-            	                   	};
+					// Keep reading the next set of data
+					ReadLoop();
+
+					if (read <= buffer.Length)
+					{
+						// If we read less than we wanted or if we filled the buffer, process it
+						ProcessBuffer();
+					}
+				};
+                StreamExtensions.ReadAsync(signal,_stream,buffer);
             }
 
             private void ProcessBuffer()
