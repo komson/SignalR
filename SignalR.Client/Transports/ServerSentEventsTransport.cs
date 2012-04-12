@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using SignalR.Client.Http;
 using SignalR.Client.Infrastructure;
 
@@ -55,19 +58,40 @@ namespace SignalR.Client.Transports
             // If we're reconnecting add /connect to the url
             bool reconnecting = initializeCallback == null;
 
-            var url = (reconnecting ? connection.Url : connection.Url + "connect") + GetReceiveQueryString(connection, data);
+            var url = (reconnecting ? connection.Url : connection.Url + "connect");
 
             Action<IRequest> prepareRequest = PrepareRequest(connection);
 
-            Debug.WriteLine("SSE: GET {0}", (object)url);
 
-            _httpClient.GetAsync(url, request =>
-            {
-                prepareRequest(request);
+        	Task<IResponse> httpTask;
 
-                request.Accept = "text/event-stream";
+			if (shouldUsePost(connection))
+			{
+				url += GetReceiveQueryString(connection, data);
 
-            }).ContinueWith(task =>
+				Debug.WriteLine("SSE: POST {0}", (object)url);
+
+				httpTask = _httpClient.PostAsync(url, request =>
+				                          	{
+				                          		prepareRequest(request);
+
+				                          		request.Accept = "text/event-stream";
+											}, new Dictionary<string, string> { { "groups", GetSerializedGroups(connection) } });
+			}
+			else
+			{
+				url += GetReceiveQueryStringWithGroups(connection, data);
+
+				Debug.WriteLine("SSE: GET {0}", (object)url);
+
+				httpTask = _httpClient.GetAsync(url, request =>
+				{
+					prepareRequest(request);
+
+					request.Accept = "text/event-stream";
+				});
+			}
+            httpTask.ContinueWith(task =>
             {
                 if (task.IsFaulted)
                 {
@@ -143,7 +167,12 @@ namespace SignalR.Client.Transports
             }
         }
 
-        protected override void OnBeforeAbort(IConnection connection)
+    	private static bool shouldUsePost(IConnection connection)
+    	{
+    		return connection.Groups.Count()>20;
+    	}
+
+    	protected override void OnBeforeAbort(IConnection connection)
         {
             // Get the reader from the connection and stop it
             var reader = connection.GetValue<AsyncStreamReader>(ReaderKey);

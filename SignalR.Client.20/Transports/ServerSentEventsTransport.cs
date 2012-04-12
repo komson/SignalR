@@ -63,9 +63,11 @@ namespace SignalR.Client._20.Transports
 
 			EventSignal<IResponse> signal;
 			
-			if (new List<string>(connection.Groups).Count>20)
+			if (shouldUsePost(connection))
 			{
 				url += GetReceiveQueryString(connection, data);
+
+				Debug.WriteLine(string.Format("SSE: POST {0}", url));
 
 				signal = _httpClient.PostAsync(url, request =>
 				                                    	{
@@ -77,12 +79,13 @@ namespace SignalR.Client._20.Transports
 			{
 				url += GetReceiveQueryStringWithGroups(connection, data);
 
+				Debug.WriteLine(string.Format("SSE: GET {0}", url));
+
 				signal = _httpClient.GetAsync(url, request =>
 				{
 					prepareRequest(request);
 
 					request.Accept = "text/event-stream";
-
 				});
 			}
 
@@ -159,7 +162,12 @@ namespace SignalR.Client._20.Transports
 			}
         }
 
-        protected override void OnBeforeAbort(IConnection connection)
+    	private static bool shouldUsePost(IConnection connection)
+    	{
+    		return new List<string>(connection.Groups).Count>20;
+    	}
+
+    	protected override void OnBeforeAbort(IConnection connection)
         {
             // Get the reader from the connection and stop it
             var reader = ConnectionExtensions.GetValue<AsyncStreamReader>(connection, ReaderKey);

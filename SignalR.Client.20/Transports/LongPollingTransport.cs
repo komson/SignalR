@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using SignalR.Client._20.Http;
@@ -47,6 +48,8 @@ namespace SignalR.Client._20.Transports
 
 			url += GetReceiveQueryString(connection, data);
 
+			Debug.WriteLine(string.Format("LP: {0}", url));
+
 			var signal = _httpClient.PostAsync(url, PrepareRequest(connection), new Dictionary<string, string>{{"groups",GetSerializedGroups(connection)}});
 			signal.Finished += (sender, e) =>
 			                   	{
@@ -69,6 +72,8 @@ namespace SignalR.Client._20.Transports
 
 			                   				// Get the response
 			                   				var raw = e.Result.ReadAsString();
+
+											Debug.WriteLine(string.Format("LP Receive: {0}", raw));
 
 			                   				if (!String.IsNullOrEmpty(raw))
 			                   				{
