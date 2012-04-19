@@ -178,7 +178,7 @@ namespace SignalR.Transports
             return tcs.Task;
         }
 
-        private void ProcessMessagesImpl(TaskCompletionSource<object> taskCompletetionSource, IReceivingConnection connection, Action postReceive = null)
+        private Task ProcessMessagesImpl(TaskCompletionSource<object> taskCompletetionSource, IReceivingConnection connection, Action postReceive = null)
         {
             if (!IsTimedOut && !IsDisconnected && Context.Response.IsClientConnected)
             {
@@ -222,11 +222,11 @@ namespace SignalR.Transports
                 TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.NotOnRanToCompletion);
 
                 // Stop execution here
-                return;
+                return receiveAsyncTask;
             }
 
             taskCompletetionSource.SetResult(null);
-            return;
+            return TaskAsyncHelper.Empty;
         }
     }
 }
