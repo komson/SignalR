@@ -11,6 +11,7 @@
         <NuGetExePath>$(NuGetToolsPath)\nuget.exe</NuGetExePath>
         <ToolsPath>$(ProjectRoot)\tools\</ToolsPath>
         <XunitPath>$(ToolsPath)xunit\</XunitPath>
+        <ScriptTempPath>$(ProjectRoot)\SignalR\bin\Scripts</ScriptTempPath>
     </PropertyGroup>
   
     <PropertyGroup>
@@ -35,6 +36,7 @@
     <PropertyGroup>  
        <Version>$(MajorVersion).$(MinorVersion).$(Revision).$(Build)</Version>
        <PackageVersion>$(MajorVersion).$(MinorVersion).$(Revision)-pre</PackageVersion>
+       <JsVersion>$(MajorVersion).$(MinorVersion)pre</JsVersion>
     </PropertyGroup>
   
     <ItemGroup>
@@ -55,6 +57,10 @@
             <ReplaceWith>$(Version)</ReplaceWith>
         </RegexTransform>
         <RegexTransform Include="$(ProjectRoot)\SignalR\Scripts\jquery.signalR.js">
+            <Find>SignalR JavaScript Library v\d+\.\d+</Find>
+            <ReplaceWith>SignalR JavaScript Library v$(PackageVersion)</ReplaceWith>
+        </RegexTransform>
+        <RegexTransform Include="$(ProjectRoot)\SignalR\Scripts\hubs.js">
             <Find>SignalR JavaScript Library v\d+\.\d+</Find>
             <ReplaceWith>SignalR JavaScript Library v$(PackageVersion)</ReplaceWith>
         </RegexTransform>
@@ -116,23 +122,30 @@
              Properties="BuildPackage=true;Version=$(PackageVersion);PackageOutputDir=$(ArtifactsDir);Configuration=$(Configuration)" />
     
     <!-- Only build WP7 and Silverlight projects if SDK's avaliable -->
-    <!--<MSBuild Projects="$(ProjectRoot)\SignalR.Client.WP7\SignalR.Client.WP7.csproj"
+    <MSBuild Projects="$(ProjectRoot)\SignalR.Client.WP7\SignalR.Client.WP7.csproj"
              Targets="Build"
-             Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight for Phone\')"
-             Properties="BuildPackage=true;Version=$(PackageVersion)PackageOutputDir=$(ArtifactsDir);Configuration=$(Configuration)" />-->
+             Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight for Phone\') And Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight for Phone\v4.0\Microsoft.Silverlight.WindowsPhone71.Overrides.targets')"
+             Properties="BuildPackage=true;Version=$(PackageVersion);PackageOutputDir=$(ArtifactsDir);Configuration=$(Configuration)" />
 
     <MSBuild Projects="$(ProjectRoot)\SignalR.Client.Silverlight\SignalR.Client.Silverlight.csproj"
              Targets="Build"
              Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight\v4.0')"
-             Properties="BuildPackage=true;Version=$(PackageVersion)PackageOutputDir=$(ArtifactsDir);Configuration=$(Configuration)" />
+             Properties="BuildPackage=true;Version=$(PackageVersion);PackageOutputDir=$(ArtifactsDir);Configuration=$(Configuration)" />
 
     <MSBuild Projects="$(ProjectRoot)\SignalR.Client.Silverlight5\SignalR.Client.Silverlight5.csproj"
          Targets="Build"
          Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight\v5.0')"
-         Properties="BuildPackage=true;Version=$(PackageVersion)PackageOutputDir=$(ArtifactsDir);Configuration=$(Configuration)" />
+         Properties="BuildPackage=true;Version=$(PackageVersion);PackageOutputDir=$(ArtifactsDir);Configuration=$(Configuration)" />
 
-    <Exec Command="&quot;$(NuGetExePath)&quot; pack &quot;%(JsPackage.Identity)&quot; -o &quot;$(ArtifactsDir)&quot; -p Version=$(PackageVersion) -basePath &quot;$(ProjectRoot)\SignalR&quot;"
+    <RemoveDir Directories="$(ScriptTempPath)" />
+    <MakeDir Directories="$(ScriptTempPath)" />
+    
+    <Copy SourceFiles="$(ProjectRoot)\SignalR\Scripts\jquery.signalR.js" DestinationFiles="$(ScriptTempPath)\jquery.signalR-$(JsVersion).js" />
+    <Copy SourceFiles="$(ProjectRoot)\SignalR\Scripts\jquery.signalR.min.js" DestinationFiles="$(ScriptTempPath)\jquery.signalR-$(JsVersion).min.js" />
+
+    <Exec Command="&quot;$(NuGetExePath)&quot; pack &quot;%(JsPackage.Identity)&quot; -o &quot;$(ArtifactsDir)&quot; -p Version=$(PackageVersion) -basePath &quot;$(ScriptTempPath)&quot;"
             LogStandardErrorAsError="true" />
+            
     <Exec Command="&quot;$(NuGetExePath)&quot; pack &quot;%(MetaPackage.Identity)&quot; -o &quot;$(ArtifactsDir)&quot; -p Version=$(PackageVersion) -exclude **\*.cs"
           LogStandardErrorAsError="true" />
   </Target>
