@@ -105,22 +105,6 @@ namespace SignalR.Tests
         }
 
         [Fact]
-        public void GetSubscriptionsReturnsListOfSubscriptions()
-        {
-            var connection = new Mock<SignalR.Client.IConnection>();
-            var hubProxy = new HubProxy(connection.Object, "foo");
-
-            hubProxy.On<int>("foo", i => { });
-
-            hubProxy.On("baz", () => { });
-
-            var subscriptions = hubProxy.GetSubscriptions().ToList();
-            Assert.Equal(2, subscriptions.Count);
-            Assert.Equal("foo", subscriptions[0]);
-            Assert.Equal("baz", subscriptions[1]);
-        }
-
-        [Fact]
         public void EndToEndTest()
         {
             var host = new MemoryHost();
@@ -143,6 +127,43 @@ namespace SignalR.Tests
             Assert.True(called);
         }
 
+        [Fact]
+        public void HubNamesAreNotCaseSensitive()
+        {
+            var host = new MemoryHost();
+            host.MapHubs();
+
+            var hubConnection = new HubConnection("http://fake");
+            IHubProxy proxy = hubConnection.CreateProxy("chatHub");
+            var called = false;
+
+            proxy.On("addMessage", data =>
+            {
+                called = true;
+                Assert.Equal("hello", data);
+            });
+
+            hubConnection.Start(host).Wait();
+
+            proxy.Invoke("Send", "hello").Wait();
+
+            Assert.True(called);
+        }
+
+        [Fact]
+        public void UnableToCreateHubThrowsError()
+        {
+            var host = new MemoryHost();
+            host.MapHubs();
+
+            var hubConnection = new HubConnection("http://fake");
+            IHubProxy proxy = hubConnection.CreateProxy("MyHub2");
+            
+            hubConnection.Start(host).Wait();
+
+            Assert.Throws<MissingMethodException>(() => proxy.Invoke("Send", "hello").Wait());
+        }
+
         private void AssertAggregateException(Action action, string message)
         {
             try
@@ -152,6 +173,19 @@ namespace SignalR.Tests
             catch (AggregateException ex)
             {
                 Assert.Equal(ex.Unwrap().Message, message);
+            }
+        }
+
+        public class MyHub2 : Hub
+        {
+            public MyHub2(int n)
+            {
+
+            }
+
+            public void Send(string value)
+            {
+
             }
         }
 

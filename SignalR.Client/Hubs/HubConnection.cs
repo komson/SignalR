@@ -1,14 +1,16 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using SignalR.Client.Transports;
 
 namespace SignalR.Client.Hubs
 {
     public class HubConnection : Connection
     {
-        private readonly Dictionary<string, HubProxy> _hubs = new Dictionary<string, HubProxy>();
+        private readonly Dictionary<string, HubProxy> _hubs = new Dictionary<string, HubProxy>(StringComparer.OrdinalIgnoreCase);
 
         public HubConnection(string url)
             : base(GetUrl(url))
@@ -18,15 +20,33 @@ namespace SignalR.Client.Hubs
         public override Task Start(IClientTransport transport)
         {
             Sending += OnConnectionSending;
-            Received += OnConnectionReceived;
             return base.Start(transport);
         }
 
         public override void Stop()
         {
             Sending -= OnConnectionSending;
-            Received -= OnConnectionReceived;
             base.Stop();
+        }
+
+        protected override void OnReceived(JToken message)
+        {
+            var invocation = message.ToObject<HubInvocation>();
+            HubProxy hubProxy;
+            if (_hubs.TryGetValue(invocation.Hub, out hubProxy))
+            {
+                if (invocation.State != null)
+                {
+                    foreach (var state in invocation.State)
+                    {
+                        hubProxy[state.Key] = state.Value;
+                    }
+                }
+
+                hubProxy.InvokeEvent(invocation.Method, invocation.Args);
+            }
+
+            base.OnReceived(message);
         }
 
         /// <summary>
@@ -49,29 +69,10 @@ namespace SignalR.Client.Hubs
         {
             var data = _hubs.Select(p => new HubRegistrationData
             {
-                Name = p.Key,
-                Methods = p.Value.GetSubscriptions()
+                Name = p.Key
             });
 
             return JsonConvert.SerializeObject(data);
-        }
-
-        private void OnConnectionReceived(string message)
-        {
-            var invocation = JsonConvert.DeserializeObject<HubClientInvocation>(message);
-            HubProxy hubProxy;
-            if (_hubs.TryGetValue(invocation.Hub, out hubProxy))
-            {
-                if (invocation.State != null)
-                {
-                    foreach (var state in invocation.State)
-                    {
-                        hubProxy[state.Key] = state.Value;
-                    }
-                }
-
-                hubProxy.InvokeEvent(invocation.Method, invocation.Args);
-            }
         }
 
         private static string GetUrl(string url)

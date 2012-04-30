@@ -18,6 +18,7 @@ namespace SignalR.Hubs
         private IHubManager _manager;
         private IParameterResolver _binder;
         private HostContext _context;
+        private readonly List<HubDescriptor> _hubs = new List<HubDescriptor>();
 
         private readonly string _url;
 
@@ -49,23 +50,24 @@ namespace SignalR.Hubs
 
             JToken[] parameterValues = hubRequest.ParameterValues;
 
-            // Resolve the action
-            MethodDescriptor actionDescriptor = _manager.GetHubMethod(descriptor.Name, hubRequest.Action, parameterValues);
-            if (actionDescriptor == null)
+            // Resolve the method
+            MethodDescriptor methodDescriptor = _manager.GetHubMethod(descriptor.Name, hubRequest.Method, parameterValues);
+            if (methodDescriptor == null)
             {
-                throw new InvalidOperationException(String.Format(CultureInfo.CurrentCulture, "'{0}' action could not be resolved.", hubRequest.Action));
+                throw new InvalidOperationException(String.Format(CultureInfo.CurrentCulture, "'{0}' method could not be resolved.", hubRequest.Method));
             }
 
             // Resolving the actual state object
             var state = new TrackingDictionary(hubRequest.State);
-            var hub = CreateHub(descriptor, connectionId, state);
+            var hub = CreateHub(descriptor, connectionId, state, throwIfFailedToCreate: true);
+
             Task resultTask;
 
             try
             {
-                // Invoke the action
-                object result = actionDescriptor.Invoker.Invoke(hub, _binder.ResolveMethodParameters(actionDescriptor, parameterValues));
-                Type returnType = result != null ? result.GetType() : actionDescriptor.ReturnType;
+                // Invoke the method
+                object result = methodDescriptor.Invoker.Invoke(hub, _binder.ResolveMethodParameters(methodDescriptor, parameterValues));
+                Type returnType = result != null ? result.GetType() : methodDescriptor.ReturnType;
 
                 if (typeof(Task).IsAssignableFrom(returnType))
                 {
@@ -177,7 +179,7 @@ namespace SignalR.Hubs
             return tcs.Task;
         }
 
-        public IHub CreateHub(HubDescriptor descriptor, string connectionId, TrackingDictionary state = null)
+        private IHub CreateHub(HubDescriptor descriptor, string connectionId, TrackingDictionary state = null, bool throwIfFailedToCreate = false)
         {
             try
             {
@@ -186,11 +188,11 @@ namespace SignalR.Hubs
                 if (hub != null)
                 {
                     state = state ?? new TrackingDictionary();
-                    hub.Context = new HubContext(_context, connectionId);
-                    hub.Caller = new SignalAgent(Connection, connectionId, descriptor.Name, state);
-                    var agent = new ClientAgent(Connection, descriptor.Name);
-                    hub.Agent = agent;
-                    hub.GroupManager = agent;
+                    hub.Context = new HubCallerContext(_context, connectionId);
+                    hub.Caller = new StatefulSignalAgent(Connection, connectionId, descriptor.Name, state);
+                    var groupManager = new GroupManager(Connection, descriptor.Name);
+                    hub.Clients = new ClientAgent(Connection, descriptor.Name);
+                    hub.Groups = new GroupManager(Connection, descriptor.Name);
                 }
 
                 return hub;
@@ -199,6 +201,12 @@ namespace SignalR.Hubs
             {
                 _trace.Source.TraceInformation("Error creating hub {0}. " + ex.Message, descriptor.Name);
                 Debug.WriteLine("HubDispatcher: Error creating hub {0}. " + ex.Message, (object)descriptor.Name);
+
+                if (throwIfFailedToCreate)
+                {
+                    throw;
+                }
+
                 return null;
             }
         }
@@ -206,7 +214,7 @@ namespace SignalR.Hubs
         private IEnumerable<HubDescriptor> GetHubsImplementingInterface(Type interfaceType)
         {
             // Get hubs that implement the specified interface
-            return _manager.GetHubs(hub => interfaceType.IsAssignableFrom(hub.Type));
+            return _hubs.Where(hub => interfaceType.IsAssignableFrom(hub.Type));
         }
 
         private Task ProcessTaskResult<T>(TrackingDictionary state, HubRequest request, Task<T> task)
@@ -245,7 +253,7 @@ namespace SignalR.Hubs
                 return base.CreateConnection(connectionId, groups, request);
             }
 
-            var clientHubInfo = JsonConvert.DeserializeObject<IEnumerable<ClientHubInfo>>(data);
+            var clientHubInfo = _jsonSerializer.Parse<IEnumerable<ClientHubInfo>>(data);
 
             if (clientHubInfo == null || !clientHubInfo.Any())
             {
@@ -260,27 +268,31 @@ namespace SignalR.Hubs
 
         private IEnumerable<string> GetSignals(ClientHubInfo hubInfo, string connectionId)
         {
-            var clientSignals = new[] { 
+            // Try to find the associated hub type
+            HubDescriptor hubDescriptor = _manager.EnsureHub(hubInfo.Name);
+
+            // Add this to the list of hub desciptors this connection is interested in
+            _hubs.Add(hubDescriptor);
+
+            // Update the name (Issue #344)
+            hubInfo.Name = hubDescriptor.Name;
+
+            // Create the signals for hubs
+            // 1. The hub name e.g. MyHub
+            // 2. The connection id for this hub e.g. MyHub.{guid}
+            // 3. The command signal for this connection
+            var clientSignals = new[] {
+                hubInfo.Name,
                 hubInfo.CreateQualifiedName(connectionId),
                 SignalCommand.AddCommandSuffix(hubInfo.CreateQualifiedName(connectionId))
             };
 
-            // Try to find the associated hub type
-            var hub = _manager.EnsureHub(hubInfo.Name);
-
-            // Set the full type name
-            hubInfo.Name = hub.Name;
-
-            // Create the signals for hubs
-            return hubInfo.Methods.Select(hubInfo.CreateQualifiedName)
-                                  .Concat(clientSignals);
-
+            return clientSignals;
         }
 
         private class ClientHubInfo
         {
             public string Name { get; set; }
-            public string[] Methods { get; set; }
 
             public string CreateQualifiedName(string unqualifiedName)
             {
@@ -308,14 +320,14 @@ namespace SignalR.Hubs
 
                 // TODO: Figure out case insensitivity in JObject.Parse, this should cover our clients for now
                 request.Hub = rawRequest.Value<string>("hub") ?? rawRequest.Value<string>("Hub");
-                request.Action = rawRequest.Value<string>("action") ?? rawRequest.Value<string>("Action");
+                request.Method = rawRequest.Value<string>("method") ?? rawRequest.Value<string>("Method");
                 request.Id = rawRequest.Value<string>("id") ?? rawRequest.Value<string>("Id");
 
                 var rawState = rawRequest["state"] ?? rawRequest["State"];
                 request.State = rawState == null ? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) :
                                            rawState.ToObject<IDictionary<string, object>>();
 
-                var rawArgs = rawRequest["data"] ?? rawRequest["Data"];
+                var rawArgs = rawRequest["args"] ?? rawRequest["Args"];
                 request.ParameterValues = rawArgs == null ? _emptyArgs :
                                                     rawArgs.Children().ToArray();
 
@@ -323,7 +335,7 @@ namespace SignalR.Hubs
             }
 
             public string Hub { get; set; }
-            public string Action { get; set; }
+            public string Method { get; set; }
             public JToken[] ParameterValues { get; set; }
             public IDictionary<string, object> State { get; set; }
             public string Id { get; set; }
