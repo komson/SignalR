@@ -31,7 +31,7 @@ namespace SignalR.Client._20
 		EventSignal<object> Send(string data);
         EventSignal<T> Send<T>(string data);
 
-		void OnReceived(string data);
+		void OnReceived(dotnet2::Newtonsoft.Json.Linq.JToken data);
 		void OnError(Exception ex);
 		void OnReconnected();
 		void PrepareRequest(IRequest request);

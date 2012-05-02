@@ -181,13 +181,19 @@ namespace SignalR.Client._20
 			return _transport.Send<T>(this, data);
 		}
 
-		void IConnection.OnReceived(string message)
+		void IConnection.OnReceived(dotnet2::Newtonsoft.Json.Linq.JToken message)
+		{
+			OnReceived(message);
+		}
+
+		protected virtual void OnReceived(dotnet2::Newtonsoft.Json.Linq.JToken message)
 		{
 			if (Received != null)
 			{
-				Received(message);
+				Received(message.ToString());
 			}
 		}
+
 
 		void IConnection.OnError(Exception error)
 		{

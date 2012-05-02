@@ -18,7 +18,6 @@ namespace SignalR.Client._20.Hubs
 		public override void Start(IClientTransport transport)
 		{
 			Sending += OnConnectionSending;
-			Received += OnConnectionReceived;
 
 			base.Start(transport);
 		}
@@ -26,7 +25,6 @@ namespace SignalR.Client._20.Hubs
 		public override void Stop()
 		{
 			Sending -= OnConnectionSending;
-			Received -= OnConnectionReceived;
 			base.Stop();
 		}
 
@@ -52,9 +50,9 @@ namespace SignalR.Client._20.Hubs
 			return JsonConvert.SerializeObject(data);
 		}
 
-		private void OnConnectionReceived(string message)
+		protected override void OnReceived(dotnet2.Newtonsoft.Json.Linq.JToken message)
 		{
-			var invocation = JsonConvert.DeserializeObject<HubClientInvocation>(message);
+			var invocation = message.ToObject<HubClientInvocation>();
 			HubProxy hubProxy;
 			if (_hubs.TryGetValue(invocation.Hub, out hubProxy))
 			{
@@ -68,6 +66,8 @@ namespace SignalR.Client._20.Hubs
 
 				hubProxy.InvokeEvent(invocation.Method, invocation.Args);
 			}
+
+			base.OnReceived(message);
 		}
 
 		private static string GetUrl(string url)

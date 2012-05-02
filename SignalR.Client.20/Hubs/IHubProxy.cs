@@ -6,7 +6,7 @@ namespace SignalR.Client._20.Hubs {
 		object this[string name] { get; set; }
 
 		Subscription Subscribe(string eventName);
-		EventSignal<object> Invoke(string action, params object[] args);
-		EventSignal<T> Invoke<T>(string action, params object[] args);
+		EventSignal<object> Invoke(string method, params object[] args);
+		EventSignal<T> Invoke<T>(string method, params object[] args);
 	}
 }
