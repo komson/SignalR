@@ -28,6 +28,26 @@ namespace SignalR.Client._20.Hubs
 			base.Stop();
 		}
 
+		protected override void OnReceived(dotnet2.Newtonsoft.Json.Linq.JToken message)
+		{
+			var invocation = message.ToObject<HubInvocation>();
+			HubProxy hubProxy;
+			if (_hubs.TryGetValue(invocation.Hub, out hubProxy))
+			{
+				if (invocation.State != null)
+				{
+					foreach (var state in invocation.State)
+					{
+						hubProxy[state.Key] = state.Value;
+					}
+				}
+
+				hubProxy.InvokeEvent(invocation.Method, invocation.Args);
+			}
+
+			base.OnReceived(message);
+		}
+
 		public IHubProxy CreateProxy(string hubName)
 		{
 			HubProxy hubProxy;
@@ -44,30 +64,10 @@ namespace SignalR.Client._20.Hubs
 			var data = new List<HubRegistrationData>();
 			foreach (var p in _hubs)
 			{
-				data.Add(new HubRegistrationData { Name = p.Key, Methods = p.Value.GetSubscriptions() });
+				data.Add(new HubRegistrationData { Name = p.Key });
 			}
 			
 			return JsonConvert.SerializeObject(data);
-		}
-
-		protected override void OnReceived(dotnet2.Newtonsoft.Json.Linq.JToken message)
-		{
-			var invocation = message.ToObject<HubClientInvocation>();
-			HubProxy hubProxy;
-			if (_hubs.TryGetValue(invocation.Hub, out hubProxy))
-			{
-				if (invocation.State != null)
-				{
-					foreach (var state in invocation.State)
-					{
-						hubProxy[state.Key] = state.Value;
-					}
-				}
-
-				hubProxy.InvokeEvent(invocation.Method, invocation.Args);
-			}
-
-			base.OnReceived(message);
 		}
 
 		private static string GetUrl(string url)
