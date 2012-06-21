@@ -16,12 +16,12 @@ namespace SignalR.Client.Net20.Infrastructure
         public static Task Delay(TimeSpan timeSpan)
         {
             var newEvent = new Task();
-            using (var resetEvent = new ManualResetEvent(false))
-            {
-                resetEvent.WaitOne(timeSpan);
-            }
-            newEvent.OnFinished(null, null);
-            return newEvent;
+			Timer timer = new Timer(_ => newEvent.OnFinished(null, null), null,
+			timeSpan,
+			TimeSpan.FromMilliseconds(-1));
+        	newEvent.ContinueWith(_ => timer.Dispose());
+
+			return newEvent;
         }
 
         /// <summary>
