@@ -196,6 +196,7 @@ namespace SignalR.Client
 				if (negotiationResponse==null)
 				{
 					negotiateTcs.SetException(new InvalidOperationException("Negotiation failed."));
+					return;
 				}
                 VerifyProtocolVersion(negotiationResponse.ProtocolVersion);
 

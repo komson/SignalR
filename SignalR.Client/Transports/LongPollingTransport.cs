@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using Newtonsoft.Json.Linq;
 using SignalR.Client.Http;
 #if NET20
 using SignalR.Client.Net20.Infrastructure;
@@ -50,7 +51,6 @@ namespace SignalR.Client.Transports
             {
                 url += "reconnect";
             }
-
             url += GetReceiveQueryString(connection, data);
 
 #if NET20
@@ -59,7 +59,7 @@ namespace SignalR.Client.Transports
             Debug.WriteLine("LP: {0}", (object)url);
 #endif
 
-            _httpClient.PostAsync(url, PrepareRequest(connection), new Dictionary<string, string>()).ContinueWith(task =>
+			_httpClient.PostAsync(url, PrepareRequest(connection), new Dictionary<string, string> { { "groups", GetSerializedGroups(connection) } }).ContinueWith(task =>
             {
                 // Clear the pending request
                 connection.Items.Remove(HttpRequestKey);

@@ -18,7 +18,7 @@ namespace SignalR.Client.Transports
     public abstract class HttpBasedTransport : IClientTransport
     {
         // The receive query string
-        private const string _receiveQueryString = "?transport={0}&connectionId={1}&messageId={2}&groups={3}&connectionData={4}{5}";
+        private const string _receiveQueryString = "?transport={0}&connectionId={1}&messageId={2}&connectionData={3}{4}";
 
         // The send query string
         private const string _sendQueryString = "?transport={0}&connectionId={1}{2}";
@@ -99,12 +99,16 @@ namespace SignalR.Client.Transports
                                  _transport,
                                  Uri.EscapeDataString(connection.ConnectionId),
                                  Convert.ToString(connection.MessageId),
-                                 Uri.EscapeDataString(JsonConvert.SerializeObject(connection.Groups)),
                                  data,
                                  GetCustomQueryString(connection));
         }
 
-        protected virtual Action<IRequest> PrepareRequest(IConnection connection)
+		protected string GetSerializedGroups(IConnection connection)
+		{
+			return Uri.EscapeDataString(JsonConvert.SerializeObject(connection.Groups));
+		}
+
+    	protected virtual Action<IRequest> PrepareRequest(IConnection connection)
         {
             return request =>
             {

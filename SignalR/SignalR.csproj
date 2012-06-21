@@ -33,6 +33,12 @@
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\Release\SignalR.XML</DocumentationFile>
   </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>SignalR.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Newtonsoft.Json, Version=4.5.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.4.5.4\lib\net40\Newtonsoft.Json.dll</HintPath>
@@ -160,6 +166,7 @@
     <None Include="Scripts\jquery-1.6.2.js" />
     <None Include="Scripts\jquery.signalR.min.js" />
     <None Include="Scripts\jquery.signalR.js" />
+    <None Include="SignalR.snk" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Scripts\hubs.js" />

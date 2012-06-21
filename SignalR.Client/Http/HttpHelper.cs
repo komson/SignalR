@@ -212,7 +212,9 @@ namespace SignalR.Client.Http
             return GetHttpRequestStreamAsync(request)
                 .Then(stream =>
                                 {
-                                    StreamExtensions.WriteAsync(stream, buffer);
+									var writeStreamResetEvent = new ManualResetEvent(false);
+									StreamExtensions.WriteAsync(stream, buffer).OnFinish += (sender, e) => writeStreamResetEvent.Set();
+                                	writeStreamResetEvent.WaitOne(TimeSpan.FromSeconds(20));
                                     return stream;
                                 }).Then(stream =>
                                                   {

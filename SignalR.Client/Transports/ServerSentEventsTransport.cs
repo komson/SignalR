@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -69,19 +70,16 @@ namespace SignalR.Client.Transports
 
 #if NET20
             Debug.WriteLine(String.Format(System.Globalization.CultureInfo.InvariantCulture,"SSE: GET {0}", url));
-
-            //Using a manual reset event instead of Delay as that wasn't working as expected in this case.
-            var resetEvent = new ManualResetEvent(false);
 #else
             Debug.WriteLine("SSE: GET {0}", (object)url);
 #endif
 
-            _httpClient.GetAsync(url, request =>
+            _httpClient.PostAsync(url, request =>
             {
                 prepareRequest(request);
 
                 request.Accept = "text/event-stream";
-            }).ContinueWith(task =>
+            },new Dictionary<string, string>{{"groups",GetSerializedGroups(connection)}}).ContinueWith(task =>
             {
                 if (task.IsFaulted)
                 {
@@ -120,9 +118,6 @@ namespace SignalR.Client.Transports
                                                            {
                                                                initializeCallback();
                                                            }
-#if NET20
-                                                           resetEvent.Set();
-#endif
                                                        },
                                                        () =>
                                                        {
@@ -147,11 +142,11 @@ namespace SignalR.Client.Transports
             if (initializeCallback != null)
             {
 #if NET20
-                resetEvent.WaitOne(ConnectionTimeout);
+                TaskAsyncHelper.Delay(ConnectionTimeout).Then(_ =>
 #else
                 TaskAsyncHelper.Delay(ConnectionTimeout).Then(() =>
 #endif
-                {
+				{
                     if (Interlocked.CompareExchange(ref _initializedCalled, 1, 0) == 0)
                     {
                         // Stop the connection
@@ -160,10 +155,7 @@ namespace SignalR.Client.Transports
                         // Connection timeout occured
                         errorCallback(new TimeoutException());
                     }
-                }
-#if !NET20
-                );
-#endif
+                });
             }
         }
 
