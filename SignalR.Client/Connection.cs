@@ -193,6 +193,10 @@ namespace SignalR.Client
 
             transport.Negotiate(this).Then(negotiationResponse =>
             {
+				if (negotiationResponse==null)
+				{
+					negotiateTcs.SetException(new InvalidOperationException("Negotiation failed."));
+				}
                 VerifyProtocolVersion(negotiationResponse.ProtocolVersion);
 
                 ConnectionId = negotiationResponse.ConnectionId;

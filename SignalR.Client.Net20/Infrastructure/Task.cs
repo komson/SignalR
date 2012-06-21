@@ -37,11 +37,19 @@ namespace SignalR.Client.Net20.Infrastructure
             OnFinish += (sender, e) =>
                             {
                                 //Fail fast here. Need to evaluate the appropriate action in this case.
-                                if (e.ResultWrapper.IsFaulted)
-                                {
-                                    throw e.ResultWrapper.Exception;
-                                }
-                                nextEventTask.OnFinished(nextAction(e.ResultWrapper.Result), e.ResultWrapper.Exception);
+								Exception exceptionFromAction = null;
+                            	TFollowing result;
+								try
+								{
+									result = nextAction(e.ResultWrapper.Result);
+								}
+								catch (Exception exception)
+								{
+									exceptionFromAction = exception;
+									result = default(TFollowing);
+								}
+								
+                                nextEventTask.OnFinished(result, exceptionFromAction);
                             };
             return nextEventTask;
         }
@@ -56,8 +64,16 @@ namespace SignalR.Client.Net20.Infrastructure
             var nextEventTask = new Task();
             OnFinish += (sender, e) =>
                             {
-                                nextAction(e.ResultWrapper.Result);
-                                nextEventTask.OnFinished(null, e.ResultWrapper.Exception);
+								Exception exceptionFromAction = null;
+								try
+								{
+									nextAction(e.ResultWrapper.Result);
+								}
+								catch (Exception exception)
+								{
+									exceptionFromAction = exception;
+								}
+								nextEventTask.OnFinished(null, exceptionFromAction);
                             };
             return nextEventTask;
         }
@@ -70,11 +86,19 @@ namespace SignalR.Client.Net20.Infrastructure
         public Task ContinueWith(Action<ResultWrapper<T>> nextAction)
         {
             var nextEventTask = new Task();
-            OnFinish += (sender, e) =>
-            {
-                nextAction(e.ResultWrapper);
-                nextEventTask.OnFinished(null, e.ResultWrapper.Exception);
-            };
+        	OnFinish += (sender, e) =>
+        	            	{
+        	            		Exception exceptionFromAction = null;
+        	            		try
+        	            		{
+        	            			nextAction(e.ResultWrapper);
+        	            		}
+        	            		catch (Exception exception)
+        	            		{
+        	            			exceptionFromAction = exception;
+        	            		}
+        	            		nextEventTask.OnFinished(null, exceptionFromAction);
+        	            	};
             return nextEventTask;
         }
 
