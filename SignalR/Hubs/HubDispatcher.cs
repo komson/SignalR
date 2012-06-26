@@ -55,6 +55,10 @@ namespace SignalR.Hubs
         /// </summary>
         protected override Task OnReceivedAsync(IRequest request, string connectionId, string data)
         {
+			if (string.IsNullOrEmpty(data))
+			{
+				return TaskAsyncHelper.Empty;
+			}
             HubRequest hubRequest = _requestParser.Parse(data);
 
             // Create the hub
