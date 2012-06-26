@@ -41,14 +41,31 @@
                           .appendTo($("#messages"));
             });
 
-            connection.error(function (e) {
-                $("<li/>").html(e.responseText)
+            connection.error(function (err) {
+                $("<li/>").html(err || "Error occurred")
                           .appendTo($("#messages"));
             });
 
             connection.disconnected(function () {
                 $("#stopStart").val("Start")
                                .prop("disabled", false);
+            });
+
+            connection.stateChanged(function (change) {
+                var oldState = null,
+                    newState = null;
+                for (var p in $.signalR.connectionState) {
+                    if ($.signalR.connectionState[p] === change.oldState) {
+                        oldState = p;
+                    }
+
+                    if ($.signalR.connectionState[p] === change.newState) {
+                        newState = p;
+                    }
+                }
+
+                $("<li/>").html(oldState + " => " + newState)
+                          .appendTo($("#messages"));
             });
 
             var start = function () {
@@ -100,6 +117,7 @@
     </script>
 </head>
 <body>
+    <a href="crossdomain.htm">Cross Domain</a>
     <h2>
         To Everybody</h2>
     <form>

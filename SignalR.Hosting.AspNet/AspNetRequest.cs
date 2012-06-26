@@ -48,6 +48,14 @@ namespace SignalR.Hosting.AspNet
             }
         }
 
+        public NameValueCollection ServerVariables
+        {
+            get
+            {
+                return _context.Request.ServerVariables;
+            }
+        }
+
         public NameValueCollection Form
         {
             get
@@ -144,9 +152,12 @@ namespace SignalR.Hosting.AspNet
             _context.AcceptWebSocketRequest(ws =>
             {
                 var handler = new AspNetWebSocketHandler();
-                handler.ProcessWebSocketRequestAsync(ws);
-                return callback(handler);
+                var task = handler.ProcessWebSocketRequestAsync(ws);
+                callback(handler).Then(h => h.CleanClose(), handler);
+                return task;
             });
+#else
+            throw new NotSupportedException();
 #endif
         }
     }

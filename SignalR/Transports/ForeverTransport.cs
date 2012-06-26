@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using SignalR.Hosting;
 using SignalR.Infrastructure;
 
 namespace SignalR.Transports
@@ -15,7 +14,6 @@ namespace SignalR.Transports
                    resolver.Resolve<IJsonSerializer>(),
                    resolver.Resolve<ITransportHeartBeat>())
         {
-
         }
 
         public ForeverTransport(HostContext context, IJsonSerializer jsonSerializer, ITransportHeartBeat heartBeat)
@@ -49,6 +47,7 @@ namespace SignalR.Transports
         protected virtual void OnSending(string payload)
         {
             HeartBeat.MarkConnection(this);
+
             if (Sending != null)
             {
                 Sending(payload);
@@ -96,7 +95,16 @@ namespace SignalR.Transports
                     if (Connected != null)
                     {
                         // Return a task that completes when the connected event task & the receive loop task are both finished
-                        return TaskAsyncHelper.Interleave(ProcessReceiveRequest, Connected, connection);
+                        bool newConnection = HeartBeat.AddConnection(this);
+                        return TaskAsyncHelper.Interleave(ProcessReceiveRequestWithoutTracking, () =>
+                        {
+                            if (newConnection)
+                            {
+                                return Connected();
+                            }
+                            return TaskAsyncHelper.Empty;
+                        }
+                        , connection, Completed);
                     }
 
                     return ProcessReceiveRequest(connection);
@@ -105,7 +113,7 @@ namespace SignalR.Transports
                 if (Reconnected != null)
                 {
                     // Return a task that completes when the reconnected event task & the receive loop task are both finished
-                    return TaskAsyncHelper.Interleave(ProcessReceiveRequest, Reconnected, connection);
+                    return TaskAsyncHelper.Interleave(ProcessReceiveRequest, Reconnected, connection, Completed);
                 }
 
                 return ProcessReceiveRequest(connection);
@@ -119,16 +127,19 @@ namespace SignalR.Transports
 
         public virtual Task Send(PersistentResponse response)
         {
-            HeartBeat.MarkConnection(this);
             var data = _jsonSerializer.Stringify(response);
+
             OnSending(data);
+
             return Context.Response.WriteAsync(data);
         }
 
         public virtual Task Send(object value)
         {
             var data = _jsonSerializer.Stringify(value);
+
             OnSending(data);
+
             return Context.Response.EndAsync(data);
         }
 
@@ -154,8 +165,11 @@ namespace SignalR.Transports
         private Task ProcessReceiveRequest(ITransportConnection connection, Action postReceive = null)
         {
             HeartBeat.AddConnection(this);
-            HeartBeat.MarkConnection(this);
+            return ProcessReceiveRequestWithoutTracking(connection, postReceive);
+        }
 
+        private Task ProcessReceiveRequestWithoutTracking(ITransportConnection connection, Action postReceive = null)
+        {
             Action afterReceive = () =>
             {
                 if (TransportConnected != null)
@@ -182,13 +196,13 @@ namespace SignalR.Transports
 
         private void ProcessMessagesImpl(TaskCompletionSource<object> taskCompletetionSource, ITransportConnection connection, Action postReceive = null)
         {
-            if (!IsTimedOut && !IsDisconnected && IsAlive)
+            if (!IsTimedOut && !IsDisconnected && IsAlive && !ConnectionEndToken.IsCancellationRequested)
             {
                 // ResponseTask will either subscribe and wait for a signal then return new messages,
                 // or return immediately with messages that were pending
                 var receiveAsyncTask = LastMessageId == null
-                    ? connection.ReceiveAsync(TimeoutToken)
-                    : connection.ReceiveAsync(LastMessageId, TimeoutToken);
+                    ? connection.ReceiveAsync(ConnectionEndToken)
+                    : connection.ReceiveAsync(LastMessageId, ConnectionEndToken);
 
                 if (postReceive != null)
                 {
@@ -198,6 +212,9 @@ namespace SignalR.Transports
                 receiveAsyncTask.Then(response =>
                 {
                     LastMessageId = response.MessageId;
+
+                    response.TimedOut = IsTimedOut;
+
                     // If the response has the Disconnect flag, just send the response and exit the loop,
                     // the server thinks connection is gone. Otherwse, send the response then re-enter the loop
                     Task sendTask = Send(response);
@@ -234,6 +251,7 @@ namespace SignalR.Transports
             }
 
             taskCompletetionSource.SetResult(null);
+            CompleteRequest();
             return;
         }
     }

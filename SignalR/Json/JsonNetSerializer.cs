@@ -6,8 +6,30 @@ namespace SignalR
     /// <summary>
     /// Default <see cref="IJsonSerializer"/> implementation over Json.NET.
     /// </summary>
-    public class JsonConvertAdapter : IJsonSerializer
+    public class JsonNetSerializer : IJsonSerializer
     {
+        private readonly JsonSerializerSettings _settings;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="JsonNetSerializer"/> class.
+        /// </summary>
+        public JsonNetSerializer()
+            : this(new JsonSerializerSettings())
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="JsonNetSerializer"/> class.
+        /// </summary>
+        /// <param name="settings">The <see cref="T:Newtonsoft.Json.JsonSerializerSettings"/> to use when serializing and deserializing.</param>
+        public JsonNetSerializer(JsonSerializerSettings settings)
+        {
+            if (settings == null)
+            {
+                throw new ArgumentNullException("settings");
+            }
+            _settings = settings;
+        }
         /// <summary>
         /// Serializes the specified object to a JSON string.
         /// </summary>
@@ -15,7 +37,7 @@ namespace SignalR
         /// <returns>A JSON string representation of the object.</returns>
         public string Stringify(object obj)
         {
-            return JsonConvert.SerializeObject(obj);
+            return JsonConvert.SerializeObject(obj, _settings);
         }
 
         /// <summary>
@@ -25,7 +47,7 @@ namespace SignalR
         /// <returns>The deserialized object from the JSON string.</returns>
         public object Parse(string json)
         {
-            return JsonConvert.DeserializeObject(json);
+            return JsonConvert.DeserializeObject(json, _settings);
         }
 
         /// <summary>
@@ -36,7 +58,7 @@ namespace SignalR
         /// <returns>The deserialized object from the JSON string.</returns>
         public object Parse(string json, Type targetType)
         {
-            return JsonConvert.DeserializeObject(json, targetType);
+            return JsonConvert.DeserializeObject(json, targetType, _settings);
         }
 
         /// <summary>
@@ -47,7 +69,7 @@ namespace SignalR
         /// <returns>The deserialized object from the JSON string.</returns>
         public T Parse<T>(string json)
         {
-            return JsonConvert.DeserializeObject<T>(json);
+            return JsonConvert.DeserializeObject<T>(json, _settings);
         }
     }
 }

@@ -1,5 +1,4 @@
 ﻿using System.Threading.Tasks;
-using SignalR.Hosting;
 
 namespace SignalR.Transports
 {
@@ -41,10 +40,7 @@ namespace SignalR.Transports
 
                 socket.OnClose = () =>
                 {
-                    if (Disconnected != null)
-                    {
-                        Disconnected().Catch();
-                    }
+                    OnDisconnect();
 
                     _isAlive = false;
                 };

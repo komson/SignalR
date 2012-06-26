@@ -1,25 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Net;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SignalR.Client.Http;
-#if NET20
-using SignalR.Client.Net20.Infrastructure;
-using Newtonsoft.Json.Serialization;
-#else
-using System.Linq;
-using System.Threading.Tasks;
-#endif
 
 namespace SignalR.Client.Transports
 {
     public abstract class HttpBasedTransport : IClientTransport
     {
-        // The receive query string
-        private const string _receiveQueryString = "?transport={0}&connectionId={1}&messageId={2}&connectionData={3}{4}";
-
         // The send query string
         private const string _sendQueryString = "?transport={0}&connectionId={1}{2}";
 
@@ -95,20 +88,38 @@ namespace SignalR.Client.Transports
 
         protected string GetReceiveQueryString(IConnection connection, string data)
         {
-            return String.Format(_receiveQueryString,
-                                 _transport,
-                                 Uri.EscapeDataString(connection.ConnectionId),
-                                 Convert.ToString(connection.MessageId),
-                                 data,
-                                 GetCustomQueryString(connection));
+            // ?transport={0}&connectionId={1}&messageId={2}&groups={3}&connectionData={4}{5}
+            var qsBuilder = new StringBuilder();
+            qsBuilder.Append("?transport=" + _transport)
+                     .Append("&connectionId=" + Uri.EscapeDataString(connection.ConnectionId));
+
+            if (connection.MessageId != null)
+            {
+                qsBuilder.Append("&messageId=" + connection.MessageId);
+            }
+
+            if (connection.Groups != null && connection.Groups.Any())
+            {
+                qsBuilder.Append("&groups=" + Uri.EscapeDataString(JsonConvert.SerializeObject(connection.Groups)));
+            }
+
+            if (data != null)
+            {
+                qsBuilder.Append("&connectionData=" + data);
+            }
+
+            string customQuery = GetCustomQueryString(connection);
+
+            if (!String.IsNullOrEmpty(customQuery))
+            {
+                qsBuilder.Append("&")
+                         .Append(customQuery);
+            }
+
+            return qsBuilder.ToString();
         }
 
-		protected string GetSerializedGroups(IConnection connection)
-		{
-			return Uri.EscapeDataString(JsonConvert.SerializeObject(connection.Groups));
-		}
-
-    	protected virtual Action<IRequest> PrepareRequest(IConnection connection)
+        protected virtual Action<IRequest> PrepareRequest(IConnection connection)
         {
             return request =>
             {
@@ -119,24 +130,19 @@ namespace SignalR.Client.Transports
             };
         }
 
-        protected static bool IsRequestAborted(Exception exception)
-        {
-            var webException = exception as WebException;
-            return (webException != null && webException.Status == WebExceptionStatus.RequestCanceled);
-        }
-
         public void Stop(IConnection connection)
         {
-#if NET20
-            var httpRequest = ConnectionExtensions.GetValue<IRequest>(connection, HttpRequestKey);
-#else
             var httpRequest = connection.GetValue<IRequest>(HttpRequestKey);
-#endif
             if (httpRequest != null)
             {
                 try
                 {
                     OnBeforeAbort(connection);
+
+                    // Abort the server side connection
+                    AbortConnection(connection);
+
+                    // Now abort the client connection
                     httpRequest.Abort();
                 }
                 catch (NotImplementedException)
@@ -145,6 +151,23 @@ namespace SignalR.Client.Transports
                 }
             }
         }
+
+        private void AbortConnection(IConnection connection)
+        {
+            string url = connection.Url + "abort" + String.Format(_sendQueryString, _transport, connection.ConnectionId, null);
+
+            try
+            {
+                // Attempt to perform a clean disconnect, but only wait 2 seconds
+                _httpClient.PostAsync(url, connection.PrepareRequest).Wait(TimeSpan.FromSeconds(2));
+            }
+            catch (Exception ex)
+            {
+                // Swallow any exceptions, but log them
+                Debug.WriteLine("Clean disconnect failed. " + ex.Unwrap().Message);
+            }
+        }
+
 
         protected virtual void OnBeforeAbort(IConnection connection)
         {
@@ -161,14 +184,9 @@ namespace SignalR.Client.Transports
                 return;
             }
 
-            if (connection.MessageId == null)
-            {
-                connection.MessageId = 0;
-            }
-
             try
             {
-                var result = JToken.Parse(response);
+                var result = JValue.Parse(response);
 
                 if (!result.HasValues)
                 {
@@ -194,16 +212,17 @@ namespace SignalR.Client.Transports
                         }
                         catch (Exception ex)
                         {
-#if NET20
+#if NET35
                             Debug.WriteLine(String.Format(System.Globalization.CultureInfo.InvariantCulture, "Failed to process message: {0}", ex));
 #else
                             Debug.WriteLine("Failed to process message: {0}", ex);
 #endif
+
                             connection.OnError(ex);
                         }
                     }
 
-                    connection.MessageId = result["MessageId"].Value<long>();
+                    connection.MessageId = result["MessageId"].Value<string>();
 
                     var transportData = result["TransportData"] as JObject;
 
@@ -212,23 +231,14 @@ namespace SignalR.Client.Transports
                         var groups = (JArray)transportData["Groups"];
                         if (groups != null)
                         {
-#if NET20
-                            var groupList = new List<string>();
-                            foreach (var groupFromTransport in groups)
-                            {
-                                groupList.Add(groupFromTransport.Value<string>());
-                            }
-                            connection.Groups = groupList;
-#else
                             connection.Groups = groups.Select(token => token.Value<string>());
-#endif
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-#if NET20
+#if NET35
                 Debug.WriteLine(String.Format(System.Globalization.CultureInfo.InvariantCulture, "Failed to response: {0}", ex));
 #else
                 Debug.WriteLine("Failed to response: {0}", ex);

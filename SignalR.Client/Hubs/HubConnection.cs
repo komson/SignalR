@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-#if NET20
-using SignalR.Client.Net20.Infrastructure;
-#else
 using System.Linq;
 using System.Threading.Tasks;
-#endif
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SignalR.Client.Transports;
@@ -58,18 +54,6 @@ namespace SignalR.Client.Hubs
         {
         }
 
-        public override Task Start(IClientTransport transport)
-        {
-            Sending += OnConnectionSending;
-            return base.Start(transport);
-        }
-
-        public override void Stop()
-        {
-            Sending -= OnConnectionSending;
-            base.Stop();
-        }
-
         protected override void OnReceived(JToken message)
         {
             var invocation = message.ToObject<HubInvocation>();
@@ -90,6 +74,16 @@ namespace SignalR.Client.Hubs
             base.OnReceived(message);
         }
 
+        protected override string OnSending()
+        {
+            var data = _hubs.Select(p => new HubRegistrationData
+            {
+                Name = p.Key
+            });
+
+            return JsonConvert.SerializeObject(data);
+        }
+
         /// <summary>
         /// Creates an <see cref="IHubProxy"/> for the hub with the specified name.
         /// </summary>
@@ -105,25 +99,7 @@ namespace SignalR.Client.Hubs
             }
             return hubProxy;
         }
-
-        private string OnConnectionSending()
-        {
-#if NET20
-            var data = new List<HubRegistrationData>();
-            foreach (var hub in _hubs)
-            {
-                data.Add(new HubRegistrationData { Name = hub.Key });
-            }
-#else
-            var data = _hubs.Select(p => new HubRegistrationData
-            {
-                Name = p.Key
-            });
-#endif
-
-            return JsonConvert.SerializeObject(data);
-        }
-
+        
         private static string GetUrl(string url, bool useDefaultUrl)
         {
             if (!url.EndsWith("/"))

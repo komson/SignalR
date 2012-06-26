@@ -1,9 +1,6 @@
 ﻿using System;
-using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using SignalR.Client.Infrastructure;
-#if NET20
-using Newtonsoft.Json.Serialization;
-#endif
 
 namespace SignalR.Client.Hubs
 {
@@ -19,14 +16,9 @@ namespace SignalR.Client.Hubs
         /// <param name="proxy">The <see cref="IHubProxy"/>.</param>
         /// <param name="name">The name of the state variable.</param>
         /// <returns>The value of the state variable.</returns>
-#if NET20
-        public static T GetValue<T>( IHubProxy proxy, string name)
-#else
         public static T GetValue<T>(this IHubProxy proxy, string name)
-#endif
         {
-            object value = proxy[name];
-            return Convert<T>(value);
+            return Convert<T>(proxy[name]);
         }
 
         /// <summary>
@@ -36,15 +28,11 @@ namespace SignalR.Client.Hubs
         /// <param name="eventName">The name of the event.</param>
         /// <param name="onData">The callback</param>
         /// <returns>An <see cref="IDisposable"/> that represents this subscription.</returns>
-#if NET20
-        public static IDisposable On( IHubProxy proxy, string eventName, Action onData)
-#else
         public static IDisposable On(this IHubProxy proxy, string eventName, Action onData)
-#endif
         {
             Subscription subscription = proxy.Subscribe(eventName);
 
-            Action<object[]> handler = args =>
+            Action<JToken[]> handler = args =>
             {
                 onData();
             };
@@ -61,15 +49,11 @@ namespace SignalR.Client.Hubs
         /// <param name="eventName">The name of the event.</param>
         /// <param name="onData">The callback</param>
         /// <returns>An <see cref="IDisposable"/> that represents this subscription.</returns>
-#if NET20
-        public static IDisposable On<T>( IHubProxy proxy, string eventName, Action<T> onData)
-#else
         public static IDisposable On<T>(this IHubProxy proxy, string eventName, Action<T> onData)
-#endif
         {
             Subscription subscription = proxy.Subscribe(eventName);
 
-            Action<object[]> handler = args =>
+            Action<JToken[]> handler = args =>
             {
                 onData(Convert<T>(args[0]));
             };
@@ -86,15 +70,11 @@ namespace SignalR.Client.Hubs
         /// <param name="eventName">The name of the event.</param>
         /// <param name="onData">The callback</param>
         /// <returns>An <see cref="IDisposable"/> that represents this subscription.</returns>
-#if NET20
-        public static IDisposable On<T1, T2>( IHubProxy proxy, string eventName, Action<T1, T2> onData)
-#else
         public static IDisposable On<T1, T2>(this IHubProxy proxy, string eventName, Action<T1, T2> onData)
-#endif
         {
             Subscription subscription = proxy.Subscribe(eventName);
 
-            Action<object[]> handler = args =>
+            Action<JToken[]> handler = args =>
             {
                 onData(Convert<T1>(args[0]),
                        Convert<T2>(args[1]));
@@ -112,15 +92,11 @@ namespace SignalR.Client.Hubs
         /// <param name="eventName">The name of the event.</param>
         /// <param name="onData">The callback</param>
         /// <returns>An <see cref="IDisposable"/> that represents this subscription.</returns>
-#if NET20
-        public static IDisposable On<T1, T2, T3>(IHubProxy proxy, string eventName, Action<T1, T2, T3> onData)
-#else
         public static IDisposable On<T1, T2, T3>(this IHubProxy proxy, string eventName, Action<T1, T2, T3> onData)
-#endif
         {
             Subscription subscription = proxy.Subscribe(eventName);
 
-            Action<object[]> handler = args =>
+            Action<JToken[]> handler = args =>
             {
                 onData(Convert<T1>(args[0]),
                        Convert<T2>(args[1]),
@@ -139,15 +115,11 @@ namespace SignalR.Client.Hubs
         /// <param name="eventName">The name of the event.</param>
         /// <param name="onData">The callback</param>
         /// <returns>An <see cref="IDisposable"/> that represents this subscription.</returns>
-#if NET20
-        public static IDisposable On<T1, T2, T3, T4>( IHubProxy proxy, string eventName, Action<T1, T2, T3, T4> onData)
-#else
         public static IDisposable On<T1, T2, T3, T4>(this IHubProxy proxy, string eventName, Action<T1, T2, T3, T4> onData)
-#endif
         {
             Subscription subscription = proxy.Subscribe(eventName);
 
-            Action<object[]> handler = args =>
+            Action<JToken[]> handler = args =>
             {
                 onData(Convert<T1>(args[0]),
                        Convert<T2>(args[1]),
@@ -160,7 +132,7 @@ namespace SignalR.Client.Hubs
             return new DisposableAction(() => subscription.Data -= handler);
         }
 
-#if !WINDOWS_PHONE && !SILVERLIGHT && !NET20
+#if !WINDOWS_PHONE && !SILVERLIGHT && !NET35
         /// <summary>
         /// Registers for an event with the specified name and callback
         /// </summary>
@@ -184,7 +156,7 @@ namespace SignalR.Client.Hubs
         {
             Subscription subscription = proxy.Subscribe(eventName);
 
-            Action<object[]> handler = args =>
+            Action<JToken[]> handler = args =>
             {
                 onData(Convert<T1>(args[0]),
                        Convert<T2>(args[1]),
@@ -209,7 +181,7 @@ namespace SignalR.Client.Hubs
         {
             Subscription subscription = proxy.Subscribe(eventName);
 
-            Action<object[]> handler = args =>
+            Action<JToken[]> handler = args =>
             {
                 onData(Convert<T1>(args[0]),
                        Convert<T2>(args[1]),
@@ -235,7 +207,7 @@ namespace SignalR.Client.Hubs
         {
             Subscription subscription = proxy.Subscribe(eventName);
 
-            Action<object[]> handler = args =>
+            Action<JToken[]> handler = args =>
             {
                 onData(Convert<T1>(args[0]),
                        Convert<T2>(args[1]),
@@ -262,19 +234,14 @@ namespace SignalR.Client.Hubs
             return new Hubservable(proxy, eventName);
         }
 #endif
-        private static T Convert<T>(object obj)
+        private static T Convert<T>(JToken obj)
         {
             if (obj == null)
             {
                 return default(T);
             }
 
-            if (typeof(T).IsAssignableFrom(obj.GetType()))
-            {
-                return (T)obj;
-            }
-
-            return JsonConvert.DeserializeObject<T>(obj.ToString());
+            return obj.ToObject<T>();
         }
     }
 }

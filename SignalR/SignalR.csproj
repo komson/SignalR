@@ -40,12 +40,12 @@
     <AssemblyOriginatorKeyFile>SignalR.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Newtonsoft.Json, Version=4.5.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.4.5.4\lib\net40\Newtonsoft.Json.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="Newtonsoft.Json, Version=4.5.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed">
+      <HintPath>..\packages\Newtonsoft.Json.4.5.4\lib\net40\Newtonsoft.Json.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\CommonAssemblyInfo.cs">
@@ -62,8 +62,15 @@
     <Compile Include="Hosting\IResponse.cs" />
     <Compile Include="CommandType.cs" />
     <Compile Include="Hosting\IWebSocket.cs" />
+    <Compile Include="Hosting\ResponseExtensions.cs" />
     <Compile Include="Hubs\HubContext.cs" />
+    <Compile Include="Hubs\HubRequest.cs" />
+    <Compile Include="Hubs\HubRequestParser.cs" />
+    <Compile Include="Hubs\HubResponse.cs" />
     <Compile Include="Hubs\IHubContext.cs" />
+    <Compile Include="Hubs\IHubRequestParser.cs" />
+    <Compile Include="Json\IJsonValue.cs" />
+    <Compile Include="Json\JTokenValue.cs" />
     <Compile Include="Hubs\StatefulSignalAgent.cs" />
     <Compile Include="Infrastructure\ConnectionExtensions.cs" />
     <Compile Include="Hubs\Extensions\HubTypeExtensions.cs" />
@@ -100,13 +107,13 @@
     <Compile Include="Hubs\IDisconnect.cs" />
     <Compile Include="Hubs\IHub.cs" />
     <Compile Include="IConnectionIdGenerator.cs" />
-    <Compile Include="IJsonSerializer.cs" />
+    <Compile Include="Json\IJsonSerializer.cs" />
     <Compile Include="MessageBus\IMessageBus.cs" />
     <Compile Include="Infrastructure\CustomStack.cs" />
     <Compile Include="Infrastructure\ITraceManager.cs" />
     <Compile Include="Infrastructure\LockedList.cs" />
     <Compile Include="Infrastructure\DependencyResolverExtensions.cs" />
-    <Compile Include="Infrastructure\ReflectionHelper.cs" />
+    <Compile Include="Hubs\ReflectionHelper.cs" />
     <Compile Include="Hosting\RequestExtensions.cs" />
     <Compile Include="Infrastructure\TraceManager.cs" />
     <Compile Include="MessageBus\InProcessMessageBus.cs" />
@@ -120,13 +127,13 @@
     <Compile Include="Hubs\HubDispatcher.cs" />
     <Compile Include="Hubs\Lookup\IHubDescriptorProvider.cs" />
     <Compile Include="Hubs\SignalAgent.cs" />
-    <Compile Include="Infrastructure\NullJavaScriptMinifier.cs" />
+    <Compile Include="Hubs\NullJavaScriptMinifier.cs" />
     <Compile Include="Infrastructure\IDependencyResolver.cs" />
-    <Compile Include="Infrastructure\IJavaScriptMinifier.cs" />
+    <Compile Include="Hubs\IJavaScriptMinifier.cs" />
     <Compile Include="Infrastructure\SafeSet.cs" />
     <Compile Include="ITransportConnection.cs" />
-    <Compile Include="JsonConvertAdapter.cs" />
-    <Compile Include="Json.cs" />
+    <Compile Include="Json\JsonNetSerializer.cs" />
+    <Compile Include="Json\Json.cs" />
     <Compile Include="GroupManager.cs" />
     <Compile Include="Infrastructure\ServerCommand.cs" />
     <Compile Include="Infrastructure\ServerCommandType.cs" />
@@ -139,7 +146,6 @@
     <Compile Include="Transports\ITransport.cs" />
     <Compile Include="Transports\ITransportHeartBeat.cs" />
     <Compile Include="Transports\ITransportManager.cs" />
-    <Compile Include="Transports\ConnectionReference.cs" />
     <Compile Include="Transports\ServerSentEventsTransport.cs" />
     <Compile Include="Transports\TransportDisconnectBase.cs" />
     <Compile Include="Transports\TransportHeartBeat.cs" />

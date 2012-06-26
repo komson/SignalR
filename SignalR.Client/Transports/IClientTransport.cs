@@ -1,8 +1,5 @@
-﻿#if NET20
-using SignalR.Client.Net20.Infrastructure;
-#else
-using System.Threading.Tasks;
-#endif
+﻿using System.Threading.Tasks;
+using System.Threading;
 
 namespace SignalR.Client.Transports
 {

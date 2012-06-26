@@ -1,26 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
-#if !WINDOWS_PHONE && !NET20
+#if !WINDOWS_PHONE && !NET35
 using System.Dynamic;
 #endif
-#if NET20
-using SignalR.Client.Net20.Infrastructure;
-#else
 using System.Threading.Tasks;
-#endif
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace SignalR.Client.Hubs
 {
     public class HubProxy :
-#if !WINDOWS_PHONE && !NET20
+#if !WINDOWS_PHONE && !NET35
  DynamicObject,
 #endif
  IHubProxy
     {
         private readonly string _hubName;
         private readonly IConnection _connection;
-        private readonly Dictionary<string, object> _state = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, JToken> _state = new Dictionary<string, JToken>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Subscription> _subscriptions = new Dictionary<string, Subscription>(StringComparer.OrdinalIgnoreCase);
 
         public HubProxy(IConnection connection, string hubName)
@@ -29,11 +26,11 @@ namespace SignalR.Client.Hubs
             _hubName = hubName;
         }
 
-        public object this[string name]
+        public JToken this[string name]
         {
             get
             {
-                object value;
+                JToken value;
                 _state.TryGetValue(name, out value);
                 return value;
             }
@@ -62,13 +59,7 @@ namespace SignalR.Client.Hubs
 
         public Task Invoke(string method, params object[] args)
         {
-#if NET20
-            var newTask = new Task();
-            Invoke<object>(method, args).OnFinish += (sender,e) => newTask.OnFinished(e.ResultWrapper.Result,e.ResultWrapper.Exception);
-            return newTask;
-#else
             return Invoke<object>(method, args);
-#endif
         }
 
         public Task<T> Invoke<T>(string method, params object[] args)
@@ -78,11 +69,17 @@ namespace SignalR.Client.Hubs
                 throw new ArgumentNullException("method");
             }
 
+            var tokenifiedArguments = new JToken[args.Length];
+            for (int i = 0; i < tokenifiedArguments.Length; i++)
+            {
+                tokenifiedArguments[i] = JToken.FromObject(args[i]);
+            }
+
             var hubData = new HubInvocation
             {
                 Hub = _hubName,
                 Method = method,
-                Args = args,
+                Args = tokenifiedArguments,
                 State = _state
             };
 
@@ -111,16 +108,16 @@ namespace SignalR.Client.Hubs
             });
         }
 
-#if !WINDOWS_PHONE && !NET20
+#if !WINDOWS_PHONE && !NET35
         public override bool TrySetMember(SetMemberBinder binder, object value)
         {
-            _state[binder.Name] = value;
+            this[binder.Name] = value as JToken ?? JToken.FromObject(value);
             return true;
         }
 
         public override bool TryGetMember(GetMemberBinder binder, out object result)
         {
-            _state.TryGetValue(binder.Name, out result);
+            result = this[binder.Name];
             return true;
         }
 
@@ -131,7 +128,7 @@ namespace SignalR.Client.Hubs
         }
 #endif
 
-        public void InvokeEvent(string eventName, object[] args)
+        public void InvokeEvent(string eventName, JToken[] args)
         {
             Subscription eventObj;
             if (_subscriptions.TryGetValue(eventName, out eventObj))
@@ -139,10 +136,5 @@ namespace SignalR.Client.Hubs
                 eventObj.OnData(args);
             }
         }
-
-		public IEnumerable<string> GetSubscriptions()
-		{
-			return _subscriptions.Keys;
-		}
     }
 }

@@ -1,5 +1,5 @@
 /*!
-* SignalR JavaScript Library v0.5
+* SignalR JavaScript Library v0.5.2
 * http://signalr.net/
 *
 * Copyright David Fowler and Damian Edwards 2012
@@ -149,7 +149,188 @@
 
     // Create hub signalR instance
     $.extend(signalR, {
-        
+        chat: {
+            _: {
+                hubName: 'Chat',
+                ignoreMembers: ['getUsers', 'join', 'send', 'namespace', 'ignoreMembers', 'callbacks'],
+                connection: function () { return signalR.hub; }
+            },
+
+            join: function (callback) {
+                return serverCall(this, "Join", $.makeArray(arguments));
+            },
+
+            send: function (content, callback) {
+                return serverCall(this, "Send", $.makeArray(arguments));
+            },
+
+            getUsers: function (callback) {
+                return serverCall(this, "GetUsers", $.makeArray(arguments));
+            }
+        },
+        demo: {
+            _: {
+                hubName: 'demo',
+                ignoreMembers: ['addToGroups', 'complexArray', 'complexType', 'doSomethingAndCallError', 'dynamicTask', 'genericTaskTypedAsPlain', 'genericTaskWithException', 'getValue', 'multipleCalls', 'overload', 'passingDynamicComplex', 'plainTask', 'readStateValue', 'setStateValue', 'simpleArray', 'taskWithException', 'unsupportedOverload', 'namespace', 'ignoreMembers', 'callbacks'],
+                connection: function () { return signalR.hub; }
+            },
+
+            getValue: function (callback) {
+                return serverCall(this, "GetValue", $.makeArray(arguments));
+            },
+
+            addToGroups: function (callback) {
+                return serverCall(this, "AddToGroups", $.makeArray(arguments));
+            },
+
+            doSomethingAndCallError: function (callback) {
+                return serverCall(this, "DoSomethingAndCallError", $.makeArray(arguments));
+            },
+
+            dynamicTask: function (callback) {
+                return serverCall(this, "DynamicTask", $.makeArray(arguments));
+            },
+
+            plainTask: function (callback) {
+                return serverCall(this, "PlainTask", $.makeArray(arguments));
+            },
+
+            genericTaskTypedAsPlain: function (callback) {
+                return serverCall(this, "GenericTaskTypedAsPlain", $.makeArray(arguments));
+            },
+
+            taskWithException: function (callback) {
+                return serverCall(this, "TaskWithException", $.makeArray(arguments));
+            },
+
+            genericTaskWithException: function (callback) {
+                return serverCall(this, "GenericTaskWithException", $.makeArray(arguments));
+            },
+
+            simpleArray: function (nums, callback) {
+                return serverCall(this, "SimpleArray", $.makeArray(arguments));
+            },
+
+            readStateValue: function (callback) {
+                return serverCall(this, "ReadStateValue", $.makeArray(arguments));
+            },
+
+            setStateValue: function (value, callback) {
+                return serverCall(this, "SetStateValue", $.makeArray(arguments));
+            },
+
+            complexArray: function (people, callback) {
+                return serverCall(this, "ComplexArray", $.makeArray(arguments));
+            },
+
+            complexType: function (p, callback) {
+                return serverCall(this, "ComplexType", $.makeArray(arguments));
+            },
+
+            passingDynamicComplex: function (p, callback) {
+                return serverCall(this, "PassingDynamicComplex", $.makeArray(arguments));
+            },
+
+            multipleCalls: function (callback) {
+                return serverCall(this, "MultipleCalls", $.makeArray(arguments));
+            },
+
+            overload: function (callback) {
+                return serverCall(this, "Overload", $.makeArray(arguments));
+            },
+
+            unsupportedOverload: function (x, callback) {
+                return serverCall(this, "UnsupportedOverload", $.makeArray(arguments));
+            }
+        },
+        drawingPad: {
+            _: {
+                hubName: 'DrawingPad',
+                ignoreMembers: ['drawLine', 'join', 'namespace', 'ignoreMembers', 'callbacks'],
+                connection: function () { return signalR.hub; }
+            },
+
+            join: function (callback) {
+                return serverCall(this, "Join", $.makeArray(arguments));
+            },
+
+            drawLine: function (data, callback) {
+                return serverCall(this, "DrawLine", $.makeArray(arguments));
+            }
+        },
+        hubBench: {
+            _: {
+                hubName: 'HubBench',
+                ignoreMembers: ['hitMe', 'hitUs', 'namespace', 'ignoreMembers', 'callbacks'],
+                connection: function () { return signalR.hub; }
+            },
+
+            hitMe: function (clientCalls, connectionId, start, callback) {
+                return serverCall(this, "HitMe", $.makeArray(arguments));
+            },
+
+            hitUs: function (clientCalls, start, callback) {
+                return serverCall(this, "HitUs", $.makeArray(arguments));
+            }
+        },
+        mouseTracking: {
+            _: {
+                hubName: 'MouseTracking',
+                ignoreMembers: ['join', 'move', 'namespace', 'ignoreMembers', 'callbacks'],
+                connection: function () { return signalR.hub; }
+            },
+
+            join: function (callback) {
+                return serverCall(this, "Join", $.makeArray(arguments));
+            },
+
+            move: function (x, y, callback) {
+                return serverCall(this, "Move", $.makeArray(arguments));
+            }
+        },
+        shapeShare: {
+            _: {
+                hubName: 'ShapeShare',
+                ignoreMembers: ['changeShape', 'changeUserName', 'createShape', 'deleteAllShapes', 'deleteShape', 'getShapes', 'join', 'namespace', 'ignoreMembers', 'callbacks'],
+                connection: function () { return signalR.hub; }
+            },
+
+            getShapes: function (callback) {
+                return serverCall(this, "GetShapes", $.makeArray(arguments));
+            },
+
+            join: function (userName, callback) {
+                return serverCall(this, "Join", $.makeArray(arguments));
+            },
+
+            changeUserName: function (currentUserName, newUserName, callback) {
+                return serverCall(this, "ChangeUserName", $.makeArray(arguments));
+            },
+
+            createShape: function (type, callback) {
+                return serverCall(this, "CreateShape", $.makeArray(arguments));
+            },
+
+            changeShape: function (h, id, w, x, y, callback) {
+                return serverCall(this, "ChangeShape", $.makeArray(arguments));
+            },
+
+            deleteShape: function (id, callback) {
+                return serverCall(this, "DeleteShape", $.makeArray(arguments));
+            },
+
+            deleteAllShapes: function (callback) {
+                return serverCall(this, "DeleteAllShapes", $.makeArray(arguments));
+            }
+        },
+        status: {
+            _: {
+                hubName: 'Status',
+                ignoreMembers: ['namespace', 'ignoreMembers', 'callbacks'],
+                connection: function () { return signalR.hub; }
+            }
+
+        }
     });
 
     signalR.hub = signalR("/signalr")
