@@ -1,4 +1,8 @@
-﻿using System.Threading.Tasks;
+﻿#if NET20
+using SignalR.Client.Net20.Infrastructure;
+#else
+using System.Threading.Tasks;
+#endif
 using Newtonsoft.Json.Linq;
 
 namespace SignalR.Client.Hubs

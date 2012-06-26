@@ -1,10 +1,15 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using SignalR.Client.Http;
 using SignalR.Client.Infrastructure;
 using SignalR.Client.Transports.ServerSentEvents;
+#if NET20
+using Newtonsoft.Json.Serialization;
+using SignalR.Client.Net20.Infrastructure;
+#endif
 
 namespace SignalR.Client.Transports
 {
@@ -39,7 +44,11 @@ namespace SignalR.Client.Transports
         private void Reconnect(IConnection connection, string data)
         {
             // Wait for a bit before reconnecting
+#if NET20
+            TaskAsyncHelper.Delay(ReconnectDelay).Then(_ =>
+#else
             TaskAsyncHelper.Delay(ReconnectDelay).Then(() =>
+#endif
             {
                 if (connection.State == ConnectionState.Reconnecting ||
                     connection.ChangeState(ConnectionState.Connected, ConnectionState.Reconnecting))
@@ -60,23 +69,27 @@ namespace SignalR.Client.Transports
 
             Action<IRequest> prepareRequest = PrepareRequest(connection);
 
-#if NET35
+#if NET35 || NET20
             Debug.WriteLine(String.Format(System.Globalization.CultureInfo.InvariantCulture, "SSE: GET {0}", (object)url));
 #else
             Debug.WriteLine("SSE: GET {0}", (object)url);
 #endif
 
-            _httpClient.GetAsync(url, request =>
+            _httpClient.PostAsync(url, request =>
             {
                 prepareRequest(request);
 
                 request.Accept = "text/event-stream";
 
-            }).ContinueWith(task =>
+            },new Dictionary<string, string>{{"groups", GetGroupsAsString(connection)}}).ContinueWith(task =>
             {
                 if (task.IsFaulted)
                 {
+#if NET20
+					Exception exception = ExceptionsExtensions.Unwrap(task.Exception);
+#else
                     Exception exception = task.Exception.Unwrap();
+#endif
                     if (!ExceptionHelper.IsRequestAborted(exception))
                     {
                         if (errorCallback != null)
@@ -163,7 +176,11 @@ namespace SignalR.Client.Transports
 
             if (errorCallback != null)
             {
+#if NET20
+                TaskAsyncHelper.Delay(ConnectionTimeout).Then(_ =>
+#else
                 TaskAsyncHelper.Delay(ConnectionTimeout).Then(() =>
+#endif
                 {
                     callbackInvoker.Invoke((conn, cb) =>
                     {
@@ -185,7 +202,11 @@ namespace SignalR.Client.Transports
         /// <param name="connection">The <see cref="IConnection"/> being aborted.</param>
         protected override void OnBeforeAbort(IConnection connection)
         {
+#if NET20
+            var eventSourceStream = ConnectionExtensions.GetValue<EventSourceStreamReader>(connection,EventSourceKey);
+#else
             var eventSourceStream = connection.GetValue<EventSourceStreamReader>(EventSourceKey);
+#endif
             if (eventSourceStream != null)
             {
                 eventSourceStream.Close();

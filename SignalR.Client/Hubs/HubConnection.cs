@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+#if NET20
+#else
 using System.Linq;
 using System.Threading.Tasks;
+#endif
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SignalR.Client.Transports;
@@ -76,10 +79,18 @@ namespace SignalR.Client.Hubs
 
         protected override string OnSending()
         {
+#if NET20
+        	var data = new List<HubRegistrationData>();
+        	foreach (string key in _hubs.Keys)
+        	{
+        		data.Add(new HubRegistrationData{Name = key});
+        	}
+#else
             var data = _hubs.Select(p => new HubRegistrationData
             {
                 Name = p.Key
             });
+#endif
 
             return JsonConvert.SerializeObject(data);
         }

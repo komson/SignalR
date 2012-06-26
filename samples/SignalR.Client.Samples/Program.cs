@@ -1,8 +1,13 @@
 ﻿using System;
 using System.Threading;
+#if NET20
+using SignalR.Client.Net20.Hubs;
+using SignalR.Client.Net20.Infrastructure;
+#else
 using System.Threading.Tasks;
+#endif
 using SignalR.Client.Hubs;
-#if !NET35
+#if !NET35 && !NET20
 using SignalR.Hosting.Memory;
 #endif
 using System.Diagnostics;
@@ -13,20 +18,20 @@ namespace SignalR.Client.Samples
     {
         static void Main(string[] args)
         {
-#if !NET35
+#if !NET35 && !NET20
             // RunInMemoryHost();
 #endif
 
-            // var hubConnection = new HubConnection("http://localhost:40476/");
+            var hubConnection = new HubConnection("http://localhost:40476/");
 
-            // RunDemoHub(hubConnection);
+            RunDemoHub(hubConnection);
 
             RunStreamingSample();
 
             Console.ReadKey();
         }
 
-#if !NET35
+#if !NET35 && !NET20
         private static void RunInMemoryHost()
         {
             var host = new MemoryHost();
@@ -74,6 +79,27 @@ namespace SignalR.Client.Samples
                 Console.WriteLine(change.OldState + " => " + change.NewState);
             };
 
+#if NET20
+            HubProxyExtensions.On<int>(demo,"invoke", i =>
+            {
+				int n = HubProxyExtensions.GetValue<int>(demo, "index");
+                Console.WriteLine("{0} client state index -> {1}", i, n);
+            });
+
+        	var waitForStart = new ManualResetEvent(false);
+            hubConnection.Start().OnFinish += (sender,e) => waitForStart.Set();
+        	waitForStart.WaitOne();
+
+			demo.Invoke("multipleCalls").ContinueWith(task =>
+			{
+				if (task.IsFaulted)
+				{
+					Console.WriteLine(task.Exception);
+				}
+			});
+
+			TaskAsyncHelper.Delay(TimeSpan.FromSeconds(7)).Then(_ => hubConnection.Stop());
+#else
             demo.On<int>("invoke", i =>
             {
                 int n = demo.GetValue<int>("index");
@@ -81,8 +107,7 @@ namespace SignalR.Client.Samples
             });
 
             hubConnection.Start().Wait();
-
-
+			
             demo.Invoke("multipleCalls").ContinueWith(task =>
             {
                 Console.WriteLine(task.Exception);
@@ -94,7 +119,8 @@ namespace SignalR.Client.Samples
                 Thread.Sleep(7000);
                 hubConnection.Stop();
             });
-        }
+#endif
+		}
 
         private static void RunStreamingSample()
         {
@@ -152,7 +178,11 @@ namespace SignalR.Client.Samples
             {
                 try
                 {
-                    task.Wait();
+#if NET20
+                	//reset.WaitOne();
+#else
+					task.Wait();
+#endif
                 }
                 catch(Exception ex)
                 {
@@ -174,7 +204,7 @@ namespace SignalR.Client.Samples
             wh.WaitOne();
         }
 
-#if !NET35
+#if !NET35 && !NET20
         public class MyConnection : PersistentConnection
         {
             protected override Task OnConnectedAsync(IRequest request, string connectionId)

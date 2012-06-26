@@ -1,10 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+#if NET20
+using Newtonsoft.Json.Serialization;
+using SignalR.Client.Net20.Infrastructure;
+#else
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+#endif
+using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SignalR.Client.Http;
@@ -98,11 +103,6 @@ namespace SignalR.Client.Transports
                 qsBuilder.Append("&messageId=" + connection.MessageId);
             }
 
-            if (connection.Groups != null && connection.Groups.Any())
-            {
-                qsBuilder.Append("&groups=" + Uri.EscapeDataString(JsonConvert.SerializeObject(connection.Groups)));
-            }
-
             if (data != null)
             {
                 qsBuilder.Append("&connectionData=" + data);
@@ -119,6 +119,19 @@ namespace SignalR.Client.Transports
             return qsBuilder.ToString();
         }
 
+		protected string GetGroupsAsString(IConnection connection)
+		{
+#if NET20
+			if (connection.Groups != null && new List<string>(connection.Groups).Count > 0)
+#else
+			if (connection.Groups != null && connection.Groups.Any())
+#endif
+			{
+				return Uri.EscapeDataString(JsonConvert.SerializeObject(connection.Groups));
+			}
+			return string.Empty;
+		}
+
         protected virtual Action<IRequest> PrepareRequest(IConnection connection)
         {
             return request =>
@@ -132,7 +145,11 @@ namespace SignalR.Client.Transports
 
         public void Stop(IConnection connection)
         {
+#if NET20
+            var httpRequest = ConnectionExtensions.GetValue<IRequest>(connection,HttpRequestKey);
+#else
             var httpRequest = connection.GetValue<IRequest>(HttpRequestKey);
+#endif
             if (httpRequest != null)
             {
                 try
@@ -159,12 +176,20 @@ namespace SignalR.Client.Transports
             try
             {
                 // Attempt to perform a clean disconnect, but only wait 2 seconds
+#if NET20
+				_httpClient.PostAsync(url, connection.PrepareRequest, new Dictionary<string, string>());
+#else
                 _httpClient.PostAsync(url, connection.PrepareRequest).Wait(TimeSpan.FromSeconds(2));
-            }
+#endif
+			}
             catch (Exception ex)
             {
                 // Swallow any exceptions, but log them
+#if NET20
+                Debug.WriteLine("Clean disconnect failed. " + ExceptionsExtensions.Unwrap(ex).Message);
+#else
                 Debug.WriteLine("Clean disconnect failed. " + ex.Unwrap().Message);
+#endif
             }
         }
 
@@ -212,7 +237,7 @@ namespace SignalR.Client.Transports
                         }
                         catch (Exception ex)
                         {
-#if NET35
+#if NET35 || NET20
                             Debug.WriteLine(String.Format(System.Globalization.CultureInfo.InvariantCulture, "Failed to process message: {0}", ex));
 #else
                             Debug.WriteLine("Failed to process message: {0}", ex);
@@ -231,14 +256,23 @@ namespace SignalR.Client.Transports
                         var groups = (JArray)transportData["Groups"];
                         if (groups != null)
                         {
+#if NET20
+                        	var groupList = new List<string>();
+                        	foreach (JToken jToken in groups)
+                        	{
+                        		groupList.Add(jToken.Value<string>());
+                        	}
+							connection.Groups = groupList;
+#else
                             connection.Groups = groups.Select(token => token.Value<string>());
+#endif
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-#if NET35
+#if NET35 || NET20
                 Debug.WriteLine(String.Format(System.Globalization.CultureInfo.InvariantCulture, "Failed to response: {0}", ex));
 #else
                 Debug.WriteLine("Failed to response: {0}", ex);

@@ -3,6 +3,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using SignalR.Client.Infrastructure;
+#if NET20
+using Newtonsoft.Json.Serialization;
+using SignalR.Client.Net20.Infrastructure;
+#endif
 
 namespace SignalR.Client.Transports.ServerSentEvents
 {
@@ -86,14 +90,22 @@ namespace SignalR.Client.Transports.ServerSentEvents
             }
 
             var buffer = new byte[4096];
-            _stream.ReadAsync(buffer).ContinueWith(task =>
+#if NET20
+            StreamExtensions.ReadAsync(_stream,buffer).ContinueWith(task =>
+#else
+			_stream.ReadAsync(buffer).ContinueWith(task =>
+#endif
             {
                 // When the first get data from the server the trigger the event.
                 Interlocked.Exchange(ref _setOpened, () => { }).Invoke();
 
                 if (task.IsFaulted)
                 {
+#if NET20
+					Close(ExceptionsExtensions.Unwrap(task.Exception));
+#else
                     Close(task.Exception.Unwrap());
+#endif
                     return;
                 }
 

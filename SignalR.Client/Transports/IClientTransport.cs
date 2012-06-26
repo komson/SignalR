@@ -1,5 +1,9 @@
-﻿using System.Threading.Tasks;
+﻿#if NET20
+using SignalR.Client.Net20.Infrastructure;
+#else
+using System.Threading.Tasks;
 using System.Threading;
+#endif
 
 namespace SignalR.Client.Transports
 {

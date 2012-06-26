@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Threading;
+#if NET20
+using Newtonsoft.Json.Serialization;
+#endif
 
 namespace SignalR.Client.Infrastructure
 {

@@ -4,7 +4,11 @@ namespace SignalR
 {
     public static class ExceptionsExtensions
     {
+#if NET20
+        internal static Exception Unwrap(Exception ex)
+#else
         internal static Exception Unwrap(this Exception ex)
+#endif
         {
             if (ex == null)
             {

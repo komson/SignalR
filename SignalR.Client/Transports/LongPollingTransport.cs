@@ -1,9 +1,14 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using SignalR.Client.Http;
 using SignalR.Client.Infrastructure;
+#if NET20
+using Newtonsoft.Json.Serialization;
+using SignalR.Client.Net20.Infrastructure;
+#endif
 
 namespace SignalR.Client.Transports
 {
@@ -53,13 +58,13 @@ namespace SignalR.Client.Transports
 
             url += GetReceiveQueryString(connection, data);
 
-#if NET35
+#if NET35 || NET20
             Debug.WriteLine(String.Format(System.Globalization.CultureInfo.InvariantCulture, "LP: {0}", (object)url));
 #else
             Debug.WriteLine("LP: {0}", (object)url);
 #endif
 
-            _httpClient.PostAsync(url, PrepareRequest(connection)).ContinueWith(task =>
+			_httpClient.PostAsync(url, PrepareRequest(connection), new Dictionary<string, string>{{"groups",GetGroupsAsString(connection)}}).ContinueWith(task =>
             {
                 // Clear the pending request
                 connection.Items.Remove(HttpRequestKey);
@@ -81,7 +86,7 @@ namespace SignalR.Client.Transports
                         // Get the response
                         var raw = task.Result.ReadAsString();
 
-#if NET35
+#if NET35 || NET20
                         Debug.WriteLine(String.Format(System.Globalization.CultureInfo.InvariantCulture, "LP Receive: {0}", (object)raw));
 #else
                         Debug.WriteLine("LP Receive: {0}", (object)raw);
@@ -108,7 +113,11 @@ namespace SignalR.Client.Transports
                             shouldRaiseReconnect = true;
                             
                             // Get the underlying exception
+#if NET20
+							Exception exception = ExceptionsExtensions.Unwrap(task.Exception);
+#else
                             Exception exception = task.Exception.Unwrap();
+#endif
 
                             // If the error callback isn't null then raise it and don't continue polling
                             if (errorCallback != null)
@@ -129,7 +138,11 @@ namespace SignalR.Client.Transports
 
                                     // If the connection is still active after raising the error event wait for 2 seconds
                                     // before polling again so we aren't hammering the server 
+#if NET20
+                                    TaskAsyncHelper.Delay(_errorDelay).Then(_ =>
+#else
                                     TaskAsyncHelper.Delay(_errorDelay).Then(() =>
+#endif
                                     {
                                         if (connection.State != ConnectionState.Disconnected)
                                         {
@@ -166,7 +179,11 @@ namespace SignalR.Client.Transports
 
             if (raiseReconnect)
             {
+#if NET20
+                TaskAsyncHelper.Delay(ReconnectDelay).Then(_ =>
+#else
                 TaskAsyncHelper.Delay(ReconnectDelay).Then(() =>
+#endif
                 {
                     // Fire the reconnect event after the delay. This gives the 
                     reconnectInvoker.Invoke((conn) => FireReconnected(conn), connection);

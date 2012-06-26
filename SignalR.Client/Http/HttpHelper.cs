@@ -4,14 +4,85 @@ using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Text;
+#if NET20
+using System.Threading;
+using SignalR.Client.Net20.Infrastructure;
+#else
 using System.Threading.Tasks;
 using SignalR.Client.Infrastructure;
+#endif
 using SignalR.Infrastructure;
 
 namespace SignalR.Client.Http
 {
     internal static class HttpHelper
     {
+#if NET20
+        public static Task<HttpWebResponse> GetHttpResponseAsync(HttpWebRequest request)
+        {
+            var signal = new Task<HttpWebResponse>();
+            try
+            {
+                request.BeginGetResponse(GetResponseCallback,
+                                         new RequestState<HttpWebResponse> { Request = request, Response = signal });
+            }
+            catch (Exception ex)
+            {
+                signal.OnFinished(null,ex);
+            }
+            return signal;
+        }
+
+        public static Task<Stream> GetHttpRequestStreamAsync(HttpWebRequest request)
+        {
+            var signal = new Task<Stream>();
+            try
+            {
+                request.BeginGetRequestStream(GetRequestStreamCallback,
+                                         new RequestState<Stream> { Request = request, Response = signal });
+            }
+            catch (Exception ex)
+            {
+                signal.OnFinished(null, ex);
+            }
+            return signal;
+        }
+
+
+        private static void GetRequestStreamCallback(IAsyncResult asynchronousResult)
+        {
+            var requestState = (RequestState<Stream>)asynchronousResult.AsyncState;
+
+            // End the operation
+            try
+            {
+                var postStream = requestState.Request.EndGetRequestStream(asynchronousResult);
+
+                // Write to the request stream.
+                requestState.Response.OnFinished(postStream,null);
+            }
+            catch (WebException exception)
+            {
+                requestState.Response.OnFinished(null,exception);
+            }
+        }
+
+        private static void GetResponseCallback(IAsyncResult asynchronousResult)
+        {
+            var requestState = (RequestState<HttpWebResponse>)asynchronousResult.AsyncState;
+
+            // End the operation
+            try
+            {
+                var response = (HttpWebResponse)requestState.Request.EndGetResponse(asynchronousResult);
+                requestState.Response.OnFinished(response,null);
+            }
+            catch (Exception ex)
+            {
+                requestState.Response.OnFinished(null,ex);
+            }
+        }
+#else
         public static Task<HttpWebResponse> GetHttpResponseAsync(this HttpWebRequest request)
         {
             try
@@ -35,7 +106,7 @@ namespace SignalR.Client.Http
                 return TaskAsyncHelper.FromError<Stream>(ex);
             }
         }
-
+#endif
         public static Task<HttpWebResponse> GetAsync(string url)
         {
             return GetAsync(url, requestPreparer: null);
@@ -48,7 +119,11 @@ namespace SignalR.Client.Http
             {
                 requestPreparer(request);
             }
+#if NET20
+			return GetHttpResponseAsync(request);
+#else
             return request.GetHttpResponseAsync();
+#endif
         }
 
         public static Task<HttpWebResponse> PostAsync(string url)
@@ -71,7 +146,11 @@ namespace SignalR.Client.Http
             return PostInternal(url, requestPreparer, postData);
         }
 
+#if NET20
+        public static string ReadAsString(HttpWebResponse response)
+#else
         public static string ReadAsString(this HttpWebResponse response)
+#endif
         {
             try
             {
@@ -88,7 +167,7 @@ namespace SignalR.Client.Http
             }
             catch (Exception ex)
             {
-#if NET35
+#if NET35 || NET20
                 Debug.WriteLine(String.Format(System.Globalization.CultureInfo.InvariantCulture, "Failed to read response: {0}", ex));
 #else
                 Debug.WriteLine("Failed to read response: {0}", ex);
@@ -119,13 +198,35 @@ namespace SignalR.Client.Http
             if (buffer == null)
             {
                 // If there's nothing to be written to the request then just get the response
+#if NET20
+				return GetHttpResponseAsync(request);
+#else
                 return request.GetHttpResponseAsync();
+#endif
             }
 
             // Write the post data to the request stream
-            return request.GetHttpRequestStreamAsync()
+#if NET20
+			return GetHttpRequestStreamAsync(request)
+				.Then(stream => StreamExtensions.WriteAsync(stream,buffer).Then(_ => stream.Dispose()))
+				.Then(_ =>
+				      	{
+				      		var manualResetEvent = new ManualResetEvent(false);
+				      		HttpWebResponse response = null;
+							var task = GetHttpResponseAsync(request);
+				      		task.OnFinish += (sender, e) =>
+				      		                 	{
+				      		                 		response = e.ResultWrapper.Result;
+				      		                 		manualResetEvent.Set();
+				      		                 	};
+				      		manualResetEvent.WaitOne();
+				      		return response;
+				      	});
+#else
+			return request.GetHttpRequestStreamAsync()
                 .Then(stream => stream.WriteAsync(buffer).Then(() => stream.Dispose()))
                 .Then(() => request.GetHttpResponseAsync());
+#endif
         }
 
         private static byte[] ProcessPostData(IDictionary<string, string> postData)
@@ -153,5 +254,15 @@ namespace SignalR.Client.Http
 
             return Encoding.UTF8.GetBytes(sb.ToString());
         }
-    }
+	}
+
+	public class RequestState
+	{
+		public HttpWebRequest Request { get; set; }
+	}
+
+	public class RequestState<T> : RequestState
+	{
+		public Task<T> Response { get; set; }
+	}
 }

@@ -1,16 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
-#if !WINDOWS_PHONE && !NET35
+#if !WINDOWS_PHONE && !NET35 && !NET20
 using System.Dynamic;
 #endif
+#if NET20
+using SignalR.Client.Net20.Infrastructure;
+#else
 using System.Threading.Tasks;
+#endif
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace SignalR.Client.Hubs
 {
     public class HubProxy :
-#if !WINDOWS_PHONE && !NET35
+#if !WINDOWS_PHONE && !NET35 && !NET20
  DynamicObject,
 #endif
  IHubProxy
@@ -59,7 +63,13 @@ namespace SignalR.Client.Hubs
 
         public Task Invoke(string method, params object[] args)
         {
+#if NET20
+			var task = new Task();
+            Invoke<object>(method, args).OnFinish += (sender,e) => task.OnFinished(e.ResultWrapper.Result,e.ResultWrapper.Exception);
+        	return task;
+#else
             return Invoke<object>(method, args);
+#endif
         }
 
         public Task<T> Invoke<T>(string method, params object[] args)
@@ -108,7 +118,7 @@ namespace SignalR.Client.Hubs
             });
         }
 
-#if !WINDOWS_PHONE && !NET35
+#if !WINDOWS_PHONE && !NET35 && !NET20
         public override bool TrySetMember(SetMemberBinder binder, object value)
         {
             this[binder.Name] = value as JToken ?? JToken.FromObject(value);
