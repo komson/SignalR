@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Newtonsoft.Json.Serialization;
@@ -109,24 +108,20 @@ namespace SignalR.Client.Net20.Infrastructure
         /// <param name="exception">The exception from the operation, if any occucred.</param>
         public void OnFinished(T result,Exception exception)
         {
-            ThreadPool.QueueUserWorkItem(o=>InnerFinish(result,exception,1));
+			InnerFinish(new FinishDetail { Result = result, Exception = exception });
         }
 
-        private void InnerFinish(T result,Exception exception,int iteration)
+        private void InnerFinish(FinishDetail finishDetail)
         {
             var handler = OnFinish;
             if (handler==null)
             {
-                if (iteration>10)
-                {
-                    //Write some debug information about this.
-                    Debug.WriteLine("An event handler must be attached within a reasonable amount of time.");
-                    return;
-                }
-                InnerFinish(result,exception,++iteration);
-
-                //Wait some time to give the consumer the opportunity to attach an event handler for OnFinish.
-                Thread.SpinWait(100000);
+				if (finishDetail.Iteration>1)
+				{
+					return;
+				}
+            	finishDetail.Iteration++;
+                finishDetail.Timer = new Timer(finishCallback,finishDetail,TimeSpan.FromMilliseconds(200),TimeSpan.FromMilliseconds(-1));
                 return;
             }
 
@@ -134,8 +129,43 @@ namespace SignalR.Client.Net20.Infrastructure
                     new CustomResultArgs<T>
                         {
                             ResultWrapper =
-                                new ResultWrapper<T> {Result = result, Exception = exception, IsFaulted = exception != null}
+                                new ResultWrapper<T> {Result = finishDetail.Result, Exception = finishDetail.Exception, IsFaulted = finishDetail.Exception != null}
                         });
         }
+
+    	private void finishCallback(object state)
+    	{
+    		var finishDetail = (FinishDetail)state;
+			InnerFinish(finishDetail);
+			finishDetail.DisposeTimer();
+    	}
+
+    	private class FinishDetail
+		{
+    		public FinishDetail()
+    		{
+    			Iteration = 1;
+    		}
+
+			public T Result { get; set; }
+			public Timer Timer { get; set; }
+			public Exception Exception { get; set; }
+    		public int Iteration { get; set; }
+
+			public void DisposeTimer()
+			{
+				if (Timer == null) return;
+
+				try
+				{
+					Timer.Dispose();
+					Timer = null;
+				}
+				catch (ObjectDisposedException)
+				{
+					//Suppress!
+				}
+			}
+		}
     }
 }
