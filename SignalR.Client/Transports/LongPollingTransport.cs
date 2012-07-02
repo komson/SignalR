@@ -1,14 +1,13 @@
-﻿using System;
+﻿#if NET20
+using SignalR.Client.Net20.Infrastructure;
+#endif
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using SignalR.Client.Http;
 using SignalR.Client.Infrastructure;
-#if NET20
-using Newtonsoft.Json.Serialization;
-using SignalR.Client.Net20.Infrastructure;
-#endif
 
 namespace SignalR.Client.Transports
 {

@@ -1,17 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-#if NET20
-using Newtonsoft.Json.Serialization;
+﻿#if NET20
 using SignalR.Client.Net20.Infrastructure;
 #else
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 #endif
-using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Text;
 using SignalR.Client.Http;
 
 namespace SignalR.Client.Transports
@@ -260,7 +259,7 @@ namespace SignalR.Client.Transports
                         	var groupList = new List<string>();
                         	foreach (JToken jToken in groups)
                         	{
-                        		groupList.Add(jToken.Value<string>());
+								groupList.Add(jToken.Value<string>());
                         	}
 							connection.Groups = groupList;
 #else

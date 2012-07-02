@@ -1,15 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-#if !WINDOWS_PHONE && !NET35 && !NET20
-using System.Dynamic;
-#endif
-#if NET20
+﻿#if NET20
 using SignalR.Client.Net20.Infrastructure;
 #else
 using System.Threading.Tasks;
 #endif
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+#if !WINDOWS_PHONE && !NET35 && !NET20
+using System.Dynamic;
+#endif
 
 namespace SignalR.Client.Hubs
 {
@@ -93,7 +93,11 @@ namespace SignalR.Client.Hubs
                 State = _state
             };
 
+#if NET20
             var value = JsonConvert.SerializeObject(hubData);
+#else
+            var value = JsonConvert.SerializeObject(hubData);
+#endif
 
             return _connection.Send<HubResult<T>>(value).Then(result =>
             {

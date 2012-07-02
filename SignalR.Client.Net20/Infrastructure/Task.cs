@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Newtonsoft.Json.Serialization;
 
 namespace SignalR.Client.Net20.Infrastructure
 {

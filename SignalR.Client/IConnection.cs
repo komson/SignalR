@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
-#if NET20
+﻿#if NET20
 using SignalR.Client.Net20.Infrastructure;
-using Newtonsoft.Json.Serialization;
 #else
 using System.Threading.Tasks;
 #endif
 using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Net;
 using SignalR.Client.Http;
 
 namespace SignalR.Client

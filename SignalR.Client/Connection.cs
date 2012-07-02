@@ -1,18 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-#if NET20
-using Newtonsoft.Json.Serialization;
+﻿#if NET20
 using SignalR.Client.Net20.Infrastructure;
 #else
 using System.Linq;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 #endif
-using System.Net;
-using System.Reflection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Net;
+using System.Reflection;
 using SignalR.Client.Http;
 using SignalR.Client.Transports;
 

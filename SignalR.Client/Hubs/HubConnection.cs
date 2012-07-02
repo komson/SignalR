@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-#if NET20
-#else
+﻿#if !NET20
 using System.Linq;
 using System.Threading.Tasks;
+using SignalR.Client.Transports;
 #endif
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using SignalR.Client.Transports;
+using System;
+using System.Collections.Generic;
 
 namespace SignalR.Client.Hubs
 {

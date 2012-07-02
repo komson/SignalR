@@ -1,7 +1,7 @@
-﻿using System;
-#if NET20
-using Newtonsoft.Json.Serialization;
+﻿#if NET20
+using SignalR.Client.Net20.Infrastructure;
 #endif
+using System;
 
 namespace SignalR.Client.Infrastructure
 {

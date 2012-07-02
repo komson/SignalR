@@ -1,8 +1,8 @@
-﻿using System;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Serialization;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using SignalR.Client.Hubs;
 using SignalR.Client.Infrastructure;
+using SignalR.Client.Net20.Infrastructure;
 
 namespace SignalR.Client.Net20.Hubs
 {
