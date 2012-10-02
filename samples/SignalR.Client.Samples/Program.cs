@@ -3,13 +3,13 @@
 using SignalR.Client.Net20.Hubs;
 using SignalR.Client.Net20.Infrastructure;
 #else
+using System.Threading.Tasks;
 #endif
 using SignalR.Client.Hubs;
 #if !NET35 && !NET20
 using SignalR.Hosting.Memory;
 #endif
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace SignalR.Client.Samples
 {
@@ -25,7 +25,7 @@ namespace SignalR.Client.Samples
 
             RunDemoHub(hubConnection);
 
-            RunStreamingSample();
+            //RunStreamingSample();
 
             Console.ReadKey();
         }
@@ -146,8 +146,12 @@ namespace SignalR.Client.Samples
             connection.Error += e =>
             {
                 Console.Error.WriteLine("========ERROR==========");
+#if NET20
+                using (var error = ErrorExtensions.GetError(e))
+#else
                 using (var error = e.GetError())
-                {
+#endif
+				{
                     Console.Error.WriteLine(error);
                 }
                 Console.Error.WriteLine("=======================");
@@ -192,7 +196,11 @@ namespace SignalR.Client.Samples
                 catch (Exception ex)
                 {
                     Console.Error.WriteLine("========ERROR==========");
-                    using (var error = ex.GetError())
+#if NET20
+					using (var error = ErrorExtensions.GetError(ex))
+#else
+					using (var error = ex.GetError())
+#endif
                     {
                         Console.Error.WriteLine(error);
                     }

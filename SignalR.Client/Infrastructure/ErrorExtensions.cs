@@ -11,9 +11,15 @@ namespace SignalR.Client
         /// </summary>
         /// <param name="ex">The thrown exception.</param>
         /// <returns>An unwrapped exception in the form of a SignalRError.</returns>
-        public static SignalRError GetError(this Exception ex)
+#if NET20
+		public static SignalRError GetError(Exception ex)
+        {
+            ex = ExceptionsExtensions.Unwrap(ex);
+#else
+		public static SignalRError GetError(this Exception ex)
         {
             ex = ex.Unwrap();
+#endif
             var wex = ex as WebException;
 
             var error = new SignalRError(ex);
@@ -48,7 +54,7 @@ namespace SignalR.Client
         private static Stream Clone(Stream source)
         {
             var cloned = new MemoryStream();
-#if NET35
+#if NET35 || NET20
             // Copy up to 2048 bytes at a time
             byte[] buffer = new byte[2048];
 

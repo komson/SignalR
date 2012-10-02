@@ -158,9 +158,9 @@ namespace SignalR.Client.Transports
                                     // If the connection is still active after raising the error event wait for 2 seconds
                                     // before polling again so we aren't hammering the server 
 #if NET20
-                                    TaskAsyncHelper.Delay(_errorDelay).Then(_ =>
+                                    TaskAsyncHelper.Delay(ErrorDelay).Then(_ =>
 #else
-                                    TaskAsyncHelper.Delay(_errorDelay).Then(() =>
+                                    TaskAsyncHelper.Delay(ErrorDelay).Then(() =>
 #endif
                                     {
                                         if (connection.State != ConnectionState.Disconnected)
@@ -193,7 +193,11 @@ namespace SignalR.Client.Transports
 
             if (initializeCallback != null)
             {
+#if NET20
+				TaskAsyncHelper.Delay(ConnectDelay).Then(_ =>
+#else
                 TaskAsyncHelper.Delay(ConnectDelay).Then(() =>
+#endif
                 {
                     callbackInvoker.Invoke(initializeCallback);
                 });
