@@ -42,7 +42,18 @@ namespace SignalR.Client.Hubs
         /// <param name="url">The url to connect to.</param>
         /// <param name="queryString">The query string data to pass to the server.</param>
         public HubConnection(string url, string queryString)
-            : base(url, queryString)
+            : this(url, queryString, useDefaultUrl: true)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="HubConnection"/> class.
+        /// </summary>
+        /// <param name="url">The url to connect to.</param>
+        /// <param name="queryString">The query string data to pass to the server.</param>
+        /// <param name="useDefaultUrl">Determines if the default "/signalr" path should be appended to the specified url.</param>
+        public HubConnection(string url, string queryString, bool useDefaultUrl)
+            : base(GetUrl(url, useDefaultUrl), queryString)
         {
         }
 
@@ -52,7 +63,18 @@ namespace SignalR.Client.Hubs
         /// <param name="url">The url to connect to.</param>
         /// <param name="queryString">The query string data to pass to the server.</param>
         public HubConnection(string url, IDictionary<string, string> queryString)
-            : base(url, queryString)
+            : this(url, queryString, useDefaultUrl: true)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="HubConnection"/> class.
+        /// </summary>
+        /// <param name="url">The url to connect to.</param>
+        /// <param name="queryString">The query string data to pass to the server.</param>
+        /// <param name="useDefaultUrl">Determines if the default "/signalr" path should be appended to the specified url.</param>
+        public HubConnection(string url, IDictionary<string, string> queryString, bool useDefaultUrl)
+            : base(GetUrl(url, useDefaultUrl), queryString)
         {
         }
 
@@ -101,6 +123,11 @@ namespace SignalR.Client.Hubs
         /// <returns>A <see cref="IHubProxy"/></returns>
         public IHubProxy CreateProxy(string hubName)
         {
+            if (State != ConnectionState.Disconnected)
+            {
+                throw new InvalidOperationException("Proxies cannot be added after the connection has been started.");
+            }
+
             HubProxy hubProxy;
             if (!_hubs.TryGetValue(hubName, out hubProxy))
             {
@@ -109,7 +136,7 @@ namespace SignalR.Client.Hubs
             }
             return hubProxy;
         }
-        
+
         private static string GetUrl(string url, bool useDefaultUrl)
         {
             if (!url.EndsWith("/"))

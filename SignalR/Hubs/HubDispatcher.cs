@@ -39,7 +39,7 @@ namespace SignalR.Hubs
                 return _trace["SignalR.HubDispatcher"];
             }
         }
-        
+
         public override void Initialize(IDependencyResolver resolver)
         {
             _proxyGenerator = resolver.Resolve<IJavaScriptProxyGenerator>();
@@ -127,9 +127,8 @@ namespace SignalR.Hubs
                 resultTask = ProcessResponse(state, null, hubRequest, e);
             }
 
-            return resultTask
-                .ContinueWith(_ => base.OnReceivedAsync(request, connectionId, data))
-                .FastUnwrap();
+            return resultTask.Then(() => base.OnReceivedAsync(request, connectionId, data))
+                             .Catch();
         }
 
         public override Task ProcessRequestAsync(HostContext context)
@@ -205,8 +204,8 @@ namespace SignalR.Hubs
                 {
                     state = state ?? new TrackingDictionary();
                     hub.Context = new HubCallerContext(request, connectionId);
-                    hub.Caller = new StatefulSignalAgent(Connection, connectionId, descriptor.Name, state);
-                    hub.Clients = new ClientAgent(Connection, descriptor.Name);
+                    hub.Caller = new StatefulSignalProxy(Connection, connectionId, descriptor.Name, state);
+                    hub.Clients = new ClientProxy(Connection, descriptor.Name);
                     hub.Groups = new GroupManager(Connection, descriptor.Name);
                 }
 

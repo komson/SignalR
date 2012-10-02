@@ -27,7 +27,14 @@
         o.doIt();
     };
 
+    demo.clientMethod = function () {
+        throw new "This should never called because it's mispelled on the server side";
+    };
+
+    $.connection.hub.logging = true;
+
     $.connection.hub.start(function () {
+
         demo.doSomethingAndCallError();
 
         demo.getValue(function (value) {
@@ -41,7 +48,7 @@
         };
 
         demo.complexType(p, function () {
-            $('#value').html('Complex Type ->' + window.JSON.stringify(this.person));
+            $('#complexType').html('Complex Type ->' + window.JSON.stringify(this.person));
         });
 
         demo.multipleCalls();
@@ -94,5 +101,7 @@
         demo.readStateValue().done(function (name) {
             $('#readStateValue').html('Read some state! => ' + name);
         });
+
+        demo.mispelledClientMethod();
     });
 });

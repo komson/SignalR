@@ -89,7 +89,7 @@
     <Compile Include="..\SignalR\TaskAsyncHelper.cs">
       <Link>Infrastructure\TaskAsyncHelper.cs</Link>
     </Compile>
-    <Compile Include="AspNetWebSocketHandler.cs" />
+    <Compile Include="WebSockets\DefaultWebSocketHandler.cs" />
     <Compile Include="Infrastructure\ByteBuffer.cs" />
     <Compile Include="Infrastructure\TaskQueue.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

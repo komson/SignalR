@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Threading;
 using SignalR.Client.Http;
 using SignalR.Client.Infrastructure;
 
@@ -13,9 +12,21 @@ namespace SignalR.Client.Transports
 {
     public class LongPollingTransport : HttpBasedTransport
     {
-        private static readonly TimeSpan _errorDelay = TimeSpan.FromSeconds(2);
-
+        /// <summary>
+        /// The time to wait after a connection drops to try reconnecting.
+        /// </summary>
         public TimeSpan ReconnectDelay { get; set; }
+
+        /// <summary>
+        /// The time to wait after an error happens to continue polling.
+        /// </summary>
+        public TimeSpan ErrorDelay { get; set; }
+
+        /// <summary>
+        /// The time to wait after the initial connect http request before it is considered
+        /// open.
+        /// </summary>
+        public TimeSpan ConnectDelay { get; set; }
 
         public LongPollingTransport()
             : this(new DefaultHttpClient())
@@ -26,6 +37,8 @@ namespace SignalR.Client.Transports
             : base(httpClient, "longPolling")
         {
             ReconnectDelay = TimeSpan.FromSeconds(5);
+            ErrorDelay = TimeSpan.FromSeconds(2);
+            ConnectDelay = TimeSpan.FromSeconds(2);
         }
 
         protected override void OnStart(IConnection connection, string data, Action initializeCallback, Action<Exception> errorCallback)
@@ -82,6 +95,13 @@ namespace SignalR.Client.Transports
                             reconnectInvoker.Invoke((conn) => FireReconnected(conn), connection);
                         }
 
+                        if (initializeCallback != null)
+                        {
+                            // If the timeout for connect hasn't fired as yet then just fire
+                            // the event before any incoming messages are processed
+                            callbackInvoker.Invoke(initializeCallback);
+                        }
+
                         // Get the response
                         var raw = task.Result.ReadAsString();
 
@@ -110,7 +130,7 @@ namespace SignalR.Client.Transports
 
                             // Raise the reconnect event if we successfully reconnect after failing
                             shouldRaiseReconnect = true;
-                            
+
                             // Get the underlying exception
 #if NET20
 							Exception exception = ExceptionsExtensions.Unwrap(task.Exception);
@@ -173,7 +193,10 @@ namespace SignalR.Client.Transports
 
             if (initializeCallback != null)
             {
-                callbackInvoker.Invoke(initializeCallback);
+                TaskAsyncHelper.Delay(ConnectDelay).Then(() =>
+                {
+                    callbackInvoker.Invoke(initializeCallback);
+                });
             }
 
             if (raiseReconnect)

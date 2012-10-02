@@ -136,6 +136,17 @@ namespace SignalR.Samples.Hubs.DemoHub
             Caller.TestGuid(new Guid());
         }
 
+        public void DynamicInvoke(string method)
+        {
+            IClientProxy proxy = Caller;
+            proxy.Invoke(method);
+        }
+
+        public void MispelledClientMethod()
+        {
+            Caller.clientMethd();
+        }
+
         public class Person
         {
             public string Name { get; set; }
